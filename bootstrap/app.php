@@ -16,6 +16,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Railway atiende por HTTPS a través de un proxy: confiar en él para generar URLs https.
+        $middleware->trustProxies(at: '*');
         // Alias de nuestros middleware, para usarlos en routes/web.php por su nombre corto.
         $middleware->alias([
             'cuenta.activa' => \App\Http\Middleware\VerificarCuentaActiva::class,
