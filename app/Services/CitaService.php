@@ -22,17 +22,18 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Lógica de negocio de las citas (RF06, RF07, RN03–RN09, RN13, RN15–RN20). La usan CU15 Programar
- * cita y, más adelante, CU16 Reprogramar, CU17 Cancelar y CU18. Toda escritura va en UNA
- * transacción; las reglas que no se cumplen lanzan ReglaNegocioException con el mensaje en español.
+ * Lógica de negocio de las citas (RF06–RF10, RN03–RN10, RN12, RN13, RN15–RN21). La usan CU15 Programar
+ * cita, CU16 Reprogramar, CU17 Cancelar y CU18 Registrar asistencia. Toda escritura va en UNA
+ * transacción; las reglas que no se cumplen lanzan ReglaNegocioException con el mensaje en español
+ * y la falta de permiso lanza AuthorizationException (403).
  */
 class CitaService
 {
     public const ORIGEN_RECEPCION = "RECEPCION";
     public const ORIGEN_AUTOSERVICIO = "AUTOSERVICIO";
 
-    // RN17: estados de una cita que ocupa al paciente.
-    private const ESTADOS_VIGENTES = ["PROGRAMADA", "CONFIRMADA"];
+    // Relaciones de la ficha que usan las validaciones, los avisos y la bitácora.
+    private const RELACIONES_FICHA = ["horario.consultorio", "horario.medicoEspecialidad.medico.persona", "horario.medicoEspecialidad.especialidad"];
 
     /**
      * CU15 pasos 6 a 9: programa una cita.
@@ -41,79 +42,240 @@ class CitaService
      */
     public function programar(array $datos, Usuario $usuario, string $origen): Cita
     {
-        try {
-            // RN13 / RF06: la disponibilidad se comprueba otra vez dentro de la misma transacción que guarda.
-            return DB::transaction(function () use ($datos, $usuario, $origen) {
-                // a) La ficha queda bloqueada (FOR UPDATE) hasta el final de la transacción.
-                $ficha = Ficha::whereKey($datos["ficha_id"])->lockForUpdate()->first();
-                if ($ficha === null) {
-                    throw new ReglaNegocioException("La ficha elegida no existe. Elija otro horario disponible.");
-                }
-                $ficha->load(["horario.consultorio", "horario.medicoEspecialidad.medico.persona", "horario.medicoEspecialidad.especialidad"]);
+        // RN13 / RF06: la disponibilidad se comprueba otra vez dentro de la misma transacción que guarda.
+        return $this->enTransaccion(function () use ($datos, $usuario, $origen) {
+            $cita = $this->registrarCita($datos, $usuario, $origen);
 
-                $paciente = Paciente::with("persona")->find($datos["paciente_id"]);
-                if ($paciente === null) {
-                    throw new ReglaNegocioException("El paciente elegido no existe.");
-                }
+            // f) Bitácora con los datos nuevos.
+            Bitacora::registrar("PROGRAMAR_CITA", "citas", $usuario->id, true, "citas", $cita->id, "WEB", null, $this->foto($cita));
 
-                // a) R-SOLAPE / RN17: serializa las reservas del mismo paciente.
-                DB::select("SELECT pg_advisory_xact_lock(hashtext(?))", ["citas.paciente." . $paciente->id]);
+            return $cita;
+        });
+    }
 
-                // b) Reglas de negocio.
-                $inicio = $ficha->inicio();
-                if ($origen === self::ORIGEN_AUTOSERVICIO) {
-                    $this->validarAutoservicio($usuario, $paciente, $inicio);
-                }
-                $this->validarPaciente($paciente);
-                $this->validarFicha($ficha, $inicio);
-                $this->validarPacienteEnLaFecha($paciente, $ficha, $inicio);
-                $seguro = $this->validarSeguro($datos["seguro_paciente_id"] ?? null, $paciente, $inicio);
+    /**
+     * CU16 pasos 5 a 7 (RF08): cambia la cita a otra ficha del MISMO médico y especialidad.
+     * $autoservicio: el paciente o su responsable legal desde la web (A2).
+     */
+    public function reprogramar(Cita $cita, int $nuevaFichaId, Usuario $usuario, ?string $motivo = null, bool $autoservicio = false): Cita
+    {
+        return $this->enTransaccion(function () use ($cita, $nuevaFichaId, $usuario, $motivo, $autoservicio) {
+            // a) La cita queda bloqueada (FOR UPDATE) y se leen sus datos actuales.
+            $cita = $this->bloquearCita($cita);
 
-                // c) La cita, con su código CM- siguiente.
-                $codigo = $this->siguienteCodigo();
-                $cita = Cita::create([
-                    "usuario_registra_id" => $usuario->id,
-                    "paciente_id" => $paciente->id,
-                    "ficha_id" => $ficha->id,
-                    "seguro_paciente_id" => $seguro?->id,
-                    "codigo" => $codigo,
-                    "origen" => $origen,
-                    "canal" => "WEB",
-                    "motivo" => ($datos["motivo"] ?? null) ?: null,
-                    "estado" => "PROGRAMADA",
-                    "codigo_autorizacion_seguro" => $seguro ? (($datos["codigo_autorizacion_seguro"] ?? null) ?: null) : null,
-                    // CU15 A4: la atención virtual lleva su enlace de videollamada.
-                    "enlace_virtual" => $ficha->horario->modalidad === "VIRTUAL" ? "https://meet.jit.si/ClinicaVidaSalud-" . $codigo : null,
-                    "fecha_registro" => now(),
-                ]);
+            // b) RN12 / A2: recepción con citas.reprogramar o el dueño con citas.autoservicio.
+            $this->autorizarCambio($cita, $usuario, $autoservicio, "citas.reprogramar");
 
-                // d) CU15 paso 9: primer registro del historial.
-                HistorialCita::create([
-                    "cita_id" => $cita->id,
-                    "usuario_realiza_id" => $usuario->id,
-                    "ficha_nueva_id" => $ficha->id,
-                    "estado_anterior" => null,
-                    "estado_nuevo" => "PROGRAMADA",
-                    "canal" => "WEB",
-                    "motivo" => $origen === self::ORIGEN_AUTOSERVICIO ? "Reserva en línea del paciente" : "Programada por recepción",
-                ]);
+            // c) RF08 / RN21 / A2: PROGRAMADA o CONFIRMADA, sin comenzar y, por la web, con anticipación.
+            $this->validarCambioPosible($cita, "reprogramar", $autoservicio);
 
-                // e) CU15 paso 9: avisos pendientes (el envío es del Ciclo 2).
-                $this->crearNotificaciones($cita, $paciente, $ficha, $usuario, $inicio);
-
-                // f) Bitácora con los datos nuevos.
-                Bitacora::registrar("PROGRAMAR_CITA", "citas", $usuario->id, true, "citas", $cita->id, "WEB", null, $this->foto($cita, $ficha, $paciente));
-
-                return $cita;
-            });
-        } catch (QueryException $e) {
-            // RF07: otro usuario guardó una cita en la misma ficha en el mismo instante.
-            if (($e->errorInfo[0] ?? null) === "23505" && str_contains($e->getMessage(), "ux_citas_ficha_activa")) {
-                throw new ReglaNegocioException("La ficha acaba de ser tomada por otro usuario. Elija otro horario disponible.");
+            // d) RN18: máximo de reprogramaciones (max_reprogramaciones).
+            if ($cita->reprogramacionesRestantes() <= 0) {
+                throw new ReglaNegocioException("La cita ya se reprogramó " . Cita::parametro("max_reprogramaciones") . " veces. Cancélela y registre una cita nueva.");
             }
 
-            throw $e;
-        }
+            // e) RN13: la nueva ficha queda bloqueada; R-SOLAPE / RN17: y las reservas del paciente.
+            $ficha = $this->bloquearFicha($nuevaFichaId);
+            $this->bloquearPaciente($cita->paciente_id);
+
+            // f) RF08: mismo médico y especialidad, distinta de la actual.
+            $actual = $cita->ficha->horario->medicoEspecialidad;
+            $nueva = $ficha->horario->medicoEspecialidad;
+            if ($nueva->medico_id !== $actual->medico_id || $nueva->especialidad_id !== $actual->especialidad_id) {
+                throw new ReglaNegocioException("La nueva ficha debe ser del mismo médico y la misma especialidad. Para cambiar de médico use «Reasignar».");
+            }
+            if ($ficha->id === $cita->ficha_id) {
+                throw new ReglaNegocioException("Elija una ficha distinta de la actual.");
+            }
+
+            // g) RN04–RN07 / RF07: habilitada, futura, de un horario vigente, médico activo y libre.
+            $inicio = $ficha->inicio();
+            $this->validarFicha($ficha, $inicio);
+
+            // h) RN15–RN17: el paciente en la nueva fecha, sin contar esta misma cita en el cruce.
+            $this->validarPacienteEnLaFecha($cita->paciente, $ficha, $inicio, $cita->id);
+
+            // i) CU16 paso 6: nueva ficha y vuelve a PROGRAMADA (debe confirmarse otra vez).
+            $antes = $this->foto($cita);
+            $fichaAnterior = $cita->ficha_id;
+            $estadoAnterior = $cita->estado;
+            $cita->update([
+                "ficha_id" => $ficha->id,
+                "estado" => "PROGRAMADA",
+                "enlace_virtual" => $this->enlaceVirtual($ficha, $cita->codigo, $cita->enlace_virtual),
+            ]);
+            $cita->setRelation("ficha", $ficha);
+
+            // RN18: el historial con ficha anterior y nueva es el que cuenta las reprogramaciones.
+            HistorialCita::create([
+                "cita_id" => $cita->id,
+                "usuario_realiza_id" => $usuario->id,
+                "ficha_anterior_id" => $fichaAnterior,
+                "ficha_nueva_id" => $ficha->id,
+                "estado_anterior" => $estadoAnterior,
+                "estado_nuevo" => "PROGRAMADA",
+                "canal" => "WEB",
+                "motivo" => $this->texto($motivo) ?? ($autoservicio ? "Reprogramada por el paciente en línea" : "Reprogramada por recepción"),
+            ]);
+
+            // j) CU16 paso 7: los avisos pendientes se anulan y se crean los de la nueva fecha.
+            $this->cancelarAvisosPendientes($cita);
+            $this->crearNotificaciones($cita, $usuario, "CITA_REPROGRAMADA");
+
+            Bitacora::registrar("REPROGRAMAR_CITA", "citas", $usuario->id, true, "citas", $cita->id, "WEB", $antes,
+                $this->foto($cita) + ["motivo_cambio" => $this->texto($motivo)]);
+
+            return $cita;
+        });
+    }
+
+    /**
+     * CU16 A1: reasigna la cita a una ficha de OTRO médico ACTIVO de la MISMA especialidad. Cancela la
+     * original y crea una cita nueva que la reemplaza (cita_reemplazada_id). No cuenta como reprogramación.
+     */
+    public function reasignar(Cita $cita, int $fichaOtroMedicoId, Usuario $usuario, ?string $motivo = null): Cita
+    {
+        return $this->enTransaccion(function () use ($cita, $fichaOtroMedicoId, $usuario, $motivo) {
+            // a) La cita original queda bloqueada; RN12: solo recepción con citas.reprogramar.
+            $original = $this->bloquearCita($cita);
+            $this->autorizarCambio($original, $usuario, false, "citas.reprogramar");
+            $this->validarCambioPosible($original, "reasignar", false);
+
+            // b) A1: la ficha es de otro médico de la misma especialidad (el resto lo valida registrarCita).
+            $ficha = Ficha::with("horario.medicoEspecialidad.especialidad")->find($fichaOtroMedicoId);
+            if ($ficha === null) {
+                throw new ReglaNegocioException("La ficha elegida no existe. Elija otro horario disponible.");
+            }
+            $actual = $original->ficha->horario->medicoEspecialidad;
+            if ($ficha->horario->medicoEspecialidad->especialidad_id !== $actual->especialidad_id) {
+                throw new ReglaNegocioException("La nueva ficha debe ser de la especialidad {$actual->especialidad->nombre}.");
+            }
+            if ($ficha->horario->medicoEspecialidad->medico_id === $actual->medico_id) {
+                throw new ReglaNegocioException("La ficha es del mismo médico: para cambiar solo el horario use «Reprogramar».");
+            }
+
+            // c) Se cancela la original (deja libre su ficha) con el motivo «Reasignada a otro médico».
+            $antes = $this->foto($original);
+            $this->anular($original, "Reasignada a otro médico" . ($this->texto($motivo) ? ": " . $this->texto($motivo) : ""), $usuario);
+
+            // d) Cita nueva con las mismas reglas que CU15 (mismo paciente, motivo y seguro), origen RECEPCION.
+            $nueva = $this->registrarCita([
+                "paciente_id" => $original->paciente_id,
+                "ficha_id" => $ficha->id,
+                "motivo" => $original->motivo,
+                "seguro_paciente_id" => $original->seguro_paciente_id,
+                "codigo_autorizacion_seguro" => $original->codigo_autorizacion_seguro,
+            ], $usuario, self::ORIGEN_RECEPCION, $original);
+
+            Bitacora::registrar("REASIGNAR_CITA", "citas", $usuario->id, true, "citas", $nueva->id, "WEB", $antes,
+                $this->foto($nueva) + ["reemplaza_a" => $original->codigo, "motivo_cambio" => $this->texto($motivo)]);
+
+            return $nueva;
+        });
+    }
+
+    /**
+     * CU17 pasos 4 a 7 (RF09): cancela la cita SIN eliminar el registro; la ficha vuelve a quedar
+     * disponible (RN09: el índice parcial ux_citas_ficha_activa ya no la cuenta).
+     * $autoservicio: el paciente o su responsable legal desde la web (A1).
+     */
+    public function cancelar(Cita $cita, string $motivo, Usuario $usuario, bool $autoservicio = false): Cita
+    {
+        return DB::transaction(function () use ($cita, $motivo, $usuario, $autoservicio) {
+            $cita = $this->bloquearCita($cita);
+
+            // RN12 / A1: recepción con citas.cancelar o el dueño con citas.autoservicio.
+            $this->autorizarCambio($cita, $usuario, $autoservicio, "citas.cancelar");
+
+            // RF09 / RN21 / A1: PROGRAMADA o CONFIRMADA, sin comenzar y, por la web, con anticipación.
+            $this->validarCambioPosible($cita, "cancelar", $autoservicio);
+
+            // ck_citas_cancelacion: el motivo es obligatorio.
+            $motivo = $this->texto($motivo);
+            if ($motivo === null) {
+                throw new ReglaNegocioException("El motivo de cancelación es obligatorio.");
+            }
+
+            $antes = $this->foto($cita);
+            $this->anular($cita, $motivo, $usuario);
+
+            Bitacora::registrar("CANCELAR_CITA", "citas", $usuario->id, true, "citas", $cita->id, "WEB", $antes, $this->foto($cita));
+
+            return $cita;
+        });
+    }
+
+    /**
+     * CU18 (RF10): confirmar (CONFIRMADA), registrar la atención (ATENDIDA) o la inasistencia
+     * (INASISTENCIA, A1). Revisa el permiso (RN12), la transición y el momento (RN21).
+     */
+    public function cambiarEstado(Cita $cita, string $nuevo, Usuario $usuario): Cita
+    {
+        return DB::transaction(function () use ($cita, $nuevo, $usuario) {
+            $cita = $this->bloquearCita($cita);
+            $estadoAnterior = $cita->estado;
+
+            // RN12: CU18 paso 3 requiere citas.confirmar; paso 4 y A1 citas.registrar_asistencia
+            // y, para el médico, que la cita sea suya (A2).
+            $permitido = match ($nuevo) {
+                "CONFIRMADA" => $usuario->tienePermiso("citas.confirmar"),
+                "ATENDIDA", "INASISTENCIA" => $cita->puedeRegistrarAsistencia($usuario),
+                default => true,
+            };
+            if (! $permitido) {
+                throw new AuthorizationException("No tiene permiso para cambiar el estado de esta cita.");
+            }
+
+            // RF10: solo las transiciones de la máquina de estados (CANCELADA y PROGRAMADA tienen su propio caso de uso).
+            if (! in_array($nuevo, ["CONFIRMADA", "ATENDIDA", "INASISTENCIA"], true) || ! $cita->puedePasarA($nuevo)) {
+                throw new ReglaNegocioException("Transición no permitida: una cita " . mb_strtolower($estadoAnterior) . " no puede pasar a " . mb_strtolower($nuevo) . ".");
+            }
+
+            // RN21 / R-HORA: el momento de cada transición.
+            $hora = substr($cita->ficha->hora_inicio, 0, 5);
+            if ($nuevo === "CONFIRMADA" && $cita->comenzo()) {
+                throw new ReglaNegocioException("La cita ya comenzó o pasó: no se puede confirmar.");
+            }
+            if ($nuevo === "ATENDIDA" && ! $cita->comenzo()) {
+                throw new ReglaNegocioException("No se puede marcar como atendida antes de la hora de la cita ({$hora}).");
+            }
+            if ($nuevo === "INASISTENCIA") {
+                if ($cita->inicioInasistencia()->isFuture()) {
+                    throw new ReglaNegocioException("Solo se puede registrar la inasistencia desde las " . $cita->inicioInasistencia()->format("H:i")
+                        . " (" . Cita::parametro("tolerancia_inasistencia_min") . " minutos de tolerancia).");
+                }
+                // CU18 A1: con una consulta registrada el paciente sí vino.
+                if ($cita->consulta()->exists()) {
+                    throw new ReglaNegocioException("La cita tiene una consulta registrada: no se puede marcar como inasistencia.");
+                }
+            }
+
+            // CU18 paso 5: estado nuevo, historial y bitácora.
+            $antes = $this->foto($cita);
+            $cita->update(["estado" => $nuevo]);
+
+            HistorialCita::create([
+                "cita_id" => $cita->id,
+                "usuario_realiza_id" => $usuario->id,
+                "estado_anterior" => $estadoAnterior,
+                "estado_nuevo" => $nuevo,
+                "canal" => "WEB",
+                "motivo" => match ($nuevo) {
+                    "CONFIRMADA" => "Asistencia confirmada",
+                    "ATENDIDA" => "Paciente atendido",
+                    default => "El paciente no se presentó",
+                },
+            ]);
+
+            // CU18 paso 5: la cita ya ocurrió (o no): sus recordatorios pendientes se anulan.
+            if (in_array($nuevo, ["ATENDIDA", "INASISTENCIA"], true)) {
+                $this->cancelarAvisosPendientes($cita);
+            }
+
+            Bitacora::registrar("CAMBIO_ESTADO_CITA", "citas", $usuario->id, true, "citas", $cita->id, "WEB", $antes, $this->foto($cita));
+
+            return $cita;
+        });
     }
 
     /**
@@ -130,6 +292,22 @@ class CitaService
             ->whereNotExists($this->citaActivaDeLaFicha())
             ->orderBy("fichas.hora_inicio")
             ->get();
+    }
+
+    // CU15 / CU16 paso 3 (sin fichas ese día): la fecha más próxima, después de $despuesDe y hasta $dias
+    // días más tarde, con alguna ficha disponible del médico en la especialidad (o null).
+    public function proximaFechaDisponible(int $medicoId, int $especialidadId, Carbon $despuesDe, int $dias = 60): ?Carbon
+    {
+        $fecha = $this->consultaFichas()
+            ->where("me.medico_id", $medicoId)
+            ->where("me.especialidad_id", $especialidadId)
+            ->where("fichas.fecha", ">", $despuesDe->toDateString())
+            ->where("fichas.fecha", "<=", $despuesDe->copy()->addDays($dias)->toDateString())
+            ->where("fichas.estado", "HABILITADA")
+            ->whereNotExists($this->citaActivaDeLaFicha())
+            ->min("fichas.fecha");
+
+        return $fecha ? Carbon::parse($fecha) : null;
     }
 
     /**
@@ -174,6 +352,177 @@ class CitaService
     public static function tituloMedico(Persona $persona): string
     {
         return ($persona->sexo === "F" ? "Dra. " : "Dr. ") . $persona->nombre_completo;
+    }
+
+    // RF07: transacción que traduce el 23505 de ux_citas_ficha_activa (otro usuario tomó la ficha
+    // en el mismo instante) a un mensaje sin detalles internos.
+    private function enTransaccion(\Closure $operacion): Cita
+    {
+        try {
+            return DB::transaction($operacion);
+        } catch (QueryException $e) {
+            if (($e->errorInfo[0] ?? null) === "23505" && str_contains($e->getMessage(), "ux_citas_ficha_activa")) {
+                throw new ReglaNegocioException("La ficha acaba de ser tomada por otro usuario. Elija otro horario disponible.");
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * CU15 pasos 6 a 9 (lo reutiliza CU16 A1): valida y crea la cita con su historial y sus avisos,
+     * dentro de la transacción del llamador. $reemplaza: la cita CANCELADA que esta reemplaza.
+     */
+    private function registrarCita(array $datos, Usuario $usuario, string $origen, ?Cita $reemplaza = null): Cita
+    {
+        // a) La ficha queda bloqueada (FOR UPDATE) hasta el final de la transacción.
+        $ficha = $this->bloquearFicha((int) $datos["ficha_id"]);
+
+        $paciente = Paciente::with("persona")->find($datos["paciente_id"]);
+        if ($paciente === null) {
+            throw new ReglaNegocioException("El paciente elegido no existe.");
+        }
+
+        // a) R-SOLAPE / RN17: serializa las reservas del mismo paciente.
+        $this->bloquearPaciente($paciente->id);
+
+        // b) Reglas de negocio.
+        $inicio = $ficha->inicio();
+        if ($origen === self::ORIGEN_AUTOSERVICIO) {
+            $this->validarAutoservicio($usuario, $paciente, $inicio);
+        }
+        $this->validarPaciente($paciente);
+        $this->validarFicha($ficha, $inicio);
+        $this->validarPacienteEnLaFecha($paciente, $ficha, $inicio);
+        $seguro = $this->validarSeguro($datos["seguro_paciente_id"] ?? null, $paciente, $inicio);
+
+        // c) La cita, con su código CM- siguiente.
+        $codigo = $this->siguienteCodigo();
+        $cita = Cita::create([
+            "usuario_registra_id" => $usuario->id,
+            "paciente_id" => $paciente->id,
+            "ficha_id" => $ficha->id,
+            "seguro_paciente_id" => $seguro?->id,
+            // CU16 A1 / tg_citas_reemplazo: la original ya está CANCELADA y es del mismo paciente.
+            "cita_reemplazada_id" => $reemplaza?->id,
+            "codigo" => $codigo,
+            "origen" => $origen,
+            "canal" => "WEB",
+            "motivo" => ($datos["motivo"] ?? null) ?: null,
+            "estado" => "PROGRAMADA",
+            "codigo_autorizacion_seguro" => $seguro ? (($datos["codigo_autorizacion_seguro"] ?? null) ?: null) : null,
+            "enlace_virtual" => $this->enlaceVirtual($ficha, $codigo),
+            "fecha_registro" => now(),
+        ]);
+        $cita->setRelation("ficha", $ficha);
+        $cita->setRelation("paciente", $paciente);
+
+        // d) CU15 paso 9: primer registro del historial.
+        HistorialCita::create([
+            "cita_id" => $cita->id,
+            "usuario_realiza_id" => $usuario->id,
+            "ficha_nueva_id" => $ficha->id,
+            "estado_anterior" => null,
+            "estado_nuevo" => "PROGRAMADA",
+            "canal" => "WEB",
+            "motivo" => match (true) {
+                $reemplaza !== null => "Reasignada desde la cita {$reemplaza->codigo}",
+                $origen === self::ORIGEN_AUTOSERVICIO => "Reserva en línea del paciente",
+                default => "Programada por recepción",
+            },
+        ]);
+
+        // e) CU15 paso 9: avisos pendientes (el envío es del Ciclo 2).
+        $this->crearNotificaciones($cita, $usuario, "CITA_PROGRAMADA");
+
+        return $cita;
+    }
+
+    /**
+     * CU17 pasos 5 y 6 (lo reutiliza CU16 A1): CANCELADA con su motivo, sin eliminar el registro
+     * (RF09, RN10), historial, avisos pendientes anulados y CITA_CANCELADA al paciente y al médico.
+     */
+    private function anular(Cita $cita, string $motivo, Usuario $usuario): void
+    {
+        $estadoAnterior = $cita->estado;
+        $cita->update(["estado" => "CANCELADA", "motivo_cancelacion" => $motivo]);
+
+        HistorialCita::create([
+            "cita_id" => $cita->id,
+            "usuario_realiza_id" => $usuario->id,
+            "estado_anterior" => $estadoAnterior,
+            "estado_nuevo" => "CANCELADA",
+            "canal" => "WEB",
+            "motivo" => $motivo,
+        ]);
+
+        $this->cancelarAvisosPendientes($cita);
+        $this->crearNotificaciones($cita, $usuario, "CITA_CANCELADA");
+    }
+
+    // RN13: la cita bloqueada (FOR UPDATE) con su paciente y su ficha, leída de nuevo dentro de la transacción.
+    private function bloquearCita(Cita $cita): Cita
+    {
+        $bloqueada = Cita::whereKey($cita->id)->lockForUpdate()->first();
+        if ($bloqueada === null) {
+            throw new ReglaNegocioException("La cita no existe.");
+        }
+
+        return $bloqueada->load(array_merge(["paciente.persona"], array_map(fn ($relacion) => "ficha." . $relacion, self::RELACIONES_FICHA)));
+    }
+
+    // RN13 / RF07: la ficha bloqueada (FOR UPDATE) hasta el final de la transacción.
+    private function bloquearFicha(int $fichaId): Ficha
+    {
+        $ficha = Ficha::whereKey($fichaId)->lockForUpdate()->first();
+        if ($ficha === null) {
+            throw new ReglaNegocioException("La ficha elegida no existe. Elija otro horario disponible.");
+        }
+
+        return $ficha->load(self::RELACIONES_FICHA);
+    }
+
+    // R-SOLAPE / RN17: candado de la transacción para las reservas del mismo paciente.
+    private function bloquearPaciente(int $pacienteId): void
+    {
+        DB::select("SELECT pg_advisory_xact_lock(hashtext(?))", ["citas.paciente." . $pacienteId]);
+    }
+
+    // RN12: recepción con $permiso o, por la web (CU16 A2 / CU17 A1), el paciente dueño o su
+    // responsable legal verificado con citas.autoservicio. Si no, 403.
+    private function autorizarCambio(Cita $cita, Usuario $usuario, bool $autoservicio, string $permiso): void
+    {
+        $permitido = $autoservicio
+            ? $usuario->tienePermiso("citas.autoservicio") && $cita->esDeLaPersona($usuario->persona_id)
+            : $usuario->tienePermiso($permiso);
+        if (! $permitido) {
+            throw new AuthorizationException("No puede modificar esta cita.");
+        }
+    }
+
+    // RF08 / RF09 / RN21: la cita está PROGRAMADA o CONFIRMADA y no ha comenzado; por la web, además,
+    // faltan al menos horas_minimas_cambio_web horas (CU16 A2 / CU17 A1).
+    private function validarCambioPosible(Cita $cita, string $accion, bool $autoservicio): void
+    {
+        $estado = mb_strtolower($cita->estado);
+        if (! in_array($cita->estado, Cita::ESTADOS_VIGENTES, true)) {
+            if ($accion === "cancelar") {
+                // RF09: una cita atendida no se cancela como si no hubiera ocurrido.
+                throw new ReglaNegocioException($cita->estado === "ATENDIDA" ? "Una cita atendida no se puede cancelar: ya ocurrió." : "La cita ya está {$estado}.");
+            }
+            throw new ReglaNegocioException("Una cita {$estado} no se puede {$accion}.");
+        }
+
+        if ($cita->comenzo()) {
+            throw new ReglaNegocioException($accion === "cancelar"
+                ? "La cita ya comenzó o pasó: registre la atención o la inasistencia."
+                : "La cita ya comenzó o pasó: no se puede {$accion}.");
+        }
+
+        if ($autoservicio && ! $cita->aTiempoParaLaWeb()) {
+            throw new ReglaNegocioException("Las citas solo se pueden {$accion} por la web con al menos "
+                . Cita::parametro("horas_minimas_cambio_web") . " horas de anticipación. Comuníquese con recepción.");
+        }
     }
 
     // CU15 A1: el correo verificado, el paciente propio o un menor a cargo (R-TUTOR) y RN19.
@@ -256,8 +605,9 @@ class CitaService
         }
     }
 
-    // RN15, RN16 y RN17: reglas del paciente en la FECHA DE LA CITA.
-    private function validarPacienteEnLaFecha(Paciente $paciente, Ficha $ficha, Carbon $inicio): void
+    // RN15, RN16 y RN17: reglas del paciente en la FECHA DE LA CITA. $sinContarCitaId: la cita que
+    // se reprograma (CU16) no cuenta como cruce consigo misma.
+    private function validarPacienteEnLaFecha(Paciente $paciente, Ficha $ficha, Carbon $inicio, ?int $sinContarCitaId = null): void
     {
         $persona = $paciente->persona;
 
@@ -275,7 +625,8 @@ class CitaService
         // RN17: el paciente no tiene otra cita vigente que se cruce, aunque sea con otro médico.
         $cruce = Cita::join("fichas", "fichas.id", "=", "citas.ficha_id")
             ->where("citas.paciente_id", $paciente->id)
-            ->whereIn("citas.estado", self::ESTADOS_VIGENTES)
+            ->whereIn("citas.estado", Cita::ESTADOS_VIGENTES)
+            ->when($sinContarCitaId, fn ($consulta) => $consulta->where("citas.id", "<>", $sinContarCitaId))
             ->where("fichas.fecha", $inicio->toDateString())
             ->where("fichas.hora_inicio", "<", $ficha->hora_fin)
             ->where("fichas.hora_fin", ">", $ficha->hora_inicio)
@@ -328,10 +679,35 @@ class CitaService
         return sprintf("CM-%06d", $ultimo + 1);
     }
 
-    // CU15 paso 9: CITA_PROGRAMADA y RECORDATORIO_CITA PENDIENTES al paciente (o a su responsable
-    // legal verificado si es menor) y CITA_PROGRAMADA al médico por SISTEMA.
-    private function crearNotificaciones(Cita $cita, Paciente $paciente, Ficha $ficha, Usuario $usuario, Carbon $inicio): void
+    // CU15 A4: la atención virtual lleva su enlace de videollamada (al reprogramar se conserva el que tenía).
+    private function enlaceVirtual(Ficha $ficha, string $codigo, ?string $actual = null): ?string
     {
+        if ($ficha->horario->modalidad !== "VIRTUAL") {
+            return null;
+        }
+
+        return $actual ?? "https://meet.jit.si/ClinicaVidaSalud-" . $codigo;
+    }
+
+    // CU16 paso 7 / CU17 paso 6 / CU18 paso 5: los avisos PENDIENTES de la cita pasan a CANCELADA (no se eliminan).
+    private function cancelarAvisosPendientes(Cita $cita): void
+    {
+        Notificacion::where("referencia_tipo", "citas")
+            ->where("referencia_id", $cita->id)
+            ->where("estado", "PENDIENTE")
+            ->update(["estado" => "CANCELADA"]);
+    }
+
+    /**
+     * CU15 paso 9 / CU16 paso 7 / CU17 paso 6: aviso $tipo (CITA_PROGRAMADA, CITA_REPROGRAMADA o
+     * CITA_CANCELADA) PENDIENTE al paciente (o a su responsable legal verificado si es menor) y al
+     * médico por SISTEMA. Si la cita sigue vigente, también el RECORDATORIO_CITA.
+     */
+    private function crearNotificaciones(Cita $cita, Usuario $usuario, string $tipo): void
+    {
+        $ficha = $cita->ficha;
+        $paciente = $cita->paciente;
+        $inicio = $ficha->inicio();
         $horario = $ficha->horario;
         $medicoPersona = $horario->medicoEspecialidad->medico->persona;
         $especialidad = $horario->medicoEspecialidad->especialidad->nombre;
@@ -339,10 +715,11 @@ class CitaService
         $lugar = $horario->modalidad === "VIRTUAL"
             ? "en línea (enlace: {$cita->enlace_virtual})"
             : "en {$horario->consultorio->nombre} ({$horario->consultorio->ubicacion})";
-        $detalle = "{$paciente->persona->nombre_completo} con " . self::tituloMedico($medicoPersona) . " ({$especialidad}) el {$cuando} {$lugar}";
+        $nombre = $paciente->persona->nombre_completo;
+        $detalle = "{$nombre} con " . self::tituloMedico($medicoPersona) . " ({$especialidad}) el {$cuando} {$lugar}";
 
         // Destinatario: el paciente o, si es menor en la fecha de la cita, su responsable legal verificado
-        // (si reserva un responsable, él mismo).
+        // (si el cambio lo hace un responsable, él mismo).
         $destinatario = $paciente->persona;
         if ($paciente->esMenor($inicio)) {
             $vinculo = VinculoPaciente::with("persona.usuario")
@@ -361,18 +738,35 @@ class CitaService
         $canal = $cuenta && $cuenta->notificar_por_correo && $cuenta->correo ? "CORREO" : "SISTEMA";
         $base = ["referencia_tipo" => "citas", "referencia_id" => $cita->id, "estado" => "PENDIENTE"];
 
+        // Títulos y mensajes para el paciente y para el médico según el tipo de aviso.
+        [$tituloPaciente, $mensajePaciente, $tituloMedico, $mensajeMedico] = match ($tipo) {
+            "CITA_REPROGRAMADA" => [
+                "Cita {$cita->codigo} reprogramada", "La cita {$cita->codigo} se reprogramó: {$detalle}. Debe confirmarse otra vez.",
+                "Cita {$cita->codigo} reprogramada", "La cita {$cita->codigo} de {$nombre} se reprogramó al {$cuando}.",
+            ],
+            "CITA_CANCELADA" => [
+                "Cita {$cita->codigo} cancelada", "Se canceló la cita {$cita->codigo} de {$detalle}. Motivo: {$cita->motivo_cancelacion}",
+                "Cita {$cita->codigo} cancelada", "Se canceló la cita {$cita->codigo} de {$nombre} del {$cuando}. El horario quedó disponible.",
+            ],
+            default => [
+                "Cita {$cita->codigo} programada", "Se programó la cita {$cita->codigo} de {$detalle}.",
+                "Nueva cita {$cita->codigo}", "Nueva cita {$cita->codigo}: {$nombre} el {$cuando}.",
+            ],
+        };
+
         Notificacion::create($base + [
             "persona_id" => $destinatario->id,
-            "tipo" => "CITA_PROGRAMADA",
+            "tipo" => $tipo,
             "canal" => $canal,
-            "titulo" => "Cita {$cita->codigo} programada",
-            "mensaje" => "Se programó la cita {$cita->codigo} de {$detalle}.",
+            "titulo" => $tituloPaciente,
+            "mensaje" => $mensajePaciente,
             "programada_para" => now(),
         ]);
 
-        // Recordatorio: horas_anticipacion de la cuenta (24 si no tiene), solo si ese momento es futuro.
+        // Recordatorio (solo si la cita sigue vigente): horas_anticipacion de la cuenta (24 si no tiene),
+        // solo si ese momento es futuro.
         $recordar = $inicio->copy()->subHours($cuenta?->horas_anticipacion ?? 24);
-        if ($recordar->isFuture()) {
+        if ($tipo !== "CITA_CANCELADA" && $recordar->isFuture()) {
             Notificacion::create($base + [
                 "persona_id" => $destinatario->id,
                 "tipo" => "RECORDATORIO_CITA",
@@ -386,22 +780,31 @@ class CitaService
         // Al médico, por el sistema.
         Notificacion::create($base + [
             "persona_id" => $medicoPersona->id,
-            "tipo" => "CITA_PROGRAMADA",
+            "tipo" => $tipo,
             "canal" => "SISTEMA",
-            "titulo" => "Nueva cita {$cita->codigo}",
-            "mensaje" => "Nueva cita {$cita->codigo}: {$paciente->persona->nombre_completo} el {$cuando}.",
+            "titulo" => $tituloMedico,
+            "mensaje" => $mensajeMedico,
             "programada_para" => now(),
         ]);
     }
 
-    // Datos de la cita para la bitácora.
-    private function foto(Cita $cita, Ficha $ficha, Paciente $paciente): array
+    // Texto recortado o null si queda vacío.
+    private function texto(?string $valor): ?string
     {
+        $valor = trim((string) $valor);
+
+        return $valor === "" ? null : $valor;
+    }
+
+    // Datos de la cita para la bitácora (anteriores y nuevos).
+    private function foto(Cita $cita): array
+    {
+        $ficha = $cita->ficha;
         $asignacion = $ficha->horario->medicoEspecialidad;
 
         return [
             "codigo" => $cita->codigo,
-            "paciente" => $paciente->codigo,
+            "paciente" => $cita->paciente->codigo,
             "ficha_id" => $ficha->id,
             "fecha" => Carbon::parse($ficha->fecha)->toDateString(),
             "hora_inicio" => substr($ficha->hora_inicio, 0, 5),
@@ -412,6 +815,8 @@ class CitaService
             "estado" => $cita->estado,
             "seguro_paciente_id" => $cita->seguro_paciente_id,
             "enlace_virtual" => $cita->enlace_virtual,
+            "motivo_cancelacion" => $cita->motivo_cancelacion,
+            "cita_reemplazada_id" => $cita->cita_reemplazada_id,
         ];
     }
 }

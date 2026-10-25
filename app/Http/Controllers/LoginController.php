@@ -103,8 +103,9 @@ class LoginController extends Controller
                 ->with("aviso", "Debe cambiar su contraseña temporal antes de continuar.");
         }
 
-        // CU01 paso 8: ir al panel.
-        return redirect()->route("panel");
+        // CU01 paso 8: volver a la página interna que se quería abrir (por ejemplo, citas/crear?ficha_id=
+        // desde CU14) o, si no había ninguna, al panel.
+        return redirect()->intended(route("panel"));
     }
 
     // CU02 pasos 1 a 4: cerrar la sesión.

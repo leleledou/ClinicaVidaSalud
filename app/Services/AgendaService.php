@@ -17,6 +17,43 @@ class AgendaService
     // Día ISO (1 = lunes ... 7 = domingo), como horarios_atencion.dia_semana.
     public const DIAS = [1 => "Lunes", 2 => "Martes", 3 => "Miércoles", 4 => "Jueves", 5 => "Viernes", 6 => "Sábado", 7 => "Domingo"];
 
+    // CU14 paso 4 / CU19 paso 4: motivo del bloqueo de agenda (clínica, médico o consultorio) que cruza
+    // la ficha. Subconsulta sin parámetros sobre los alias fichas, me (medicos_especialidades) y h (horarios_atencion).
+    public const SQL_MOTIVO_BLOQUEO = "(select b.motivo from bloqueos_agenda b where b.inicio < (fichas.fecha + fichas.hora_fin) and b.fin > (fichas.fecha + fichas.hora_inicio)
+        and (b.alcance = 'CLINICA' or (b.alcance = 'MEDICO' and b.medico_id = me.medico_id) or (b.alcance = 'CONSULTORIO' and b.consultorio_id = h.consultorio_id))
+        order by b.inicio limit 1)";
+
+    /**
+     * CU15/CU16 (días de atención del médico) y CU19 excepción: horarios ACTIVOS y vigentes desde hoy,
+     * de un médico o de todos, con su especialidad, ordenados por día y hora (consulta parametrizada).
+     */
+    public function horariosVigentes(?int $medicoId = null)
+    {
+        return HorarioAtencion::join("medicos_especialidades as me", "me.id", "=", "horarios_atencion.medico_especialidad_id")
+            ->join("especialidades", "especialidades.id", "=", "me.especialidad_id")
+            ->where("horarios_atencion.estado", "ACTIVO")
+            ->where(fn ($vigencia) => $vigencia->whereNull("horarios_atencion.vigente_hasta")->orWhere("horarios_atencion.vigente_hasta", ">=", today()->toDateString()))
+            ->when($medicoId, fn ($consulta) => $consulta->where("me.medico_id", $medicoId))
+            ->orderBy("horarios_atencion.dia_semana")
+            ->orderBy("horarios_atencion.hora_inicio")
+            ->get(["horarios_atencion.dia_semana", "horarios_atencion.hora_inicio", "horarios_atencion.hora_fin",
+                "me.medico_id", "me.especialidad_id", "especialidades.nombre as especialidad"]);
+    }
+
+    // Texto de los días y horas de unos horarios: «lunes, miércoles y viernes de 08:00 a 12:00; martes de 14:00 a 18:00».
+    public static function textoAtencion($horarios): string
+    {
+        return $horarios->groupBy(fn ($horario) => substr($horario->hora_inicio, 0, 5) . " a " . substr($horario->hora_fin, 0, 5))
+            ->map(function ($grupo, $horas) {
+                $dias = $grupo->pluck("dia_semana")->map(fn ($dia) => (int) $dia)->unique()->sort()
+                    ->map(fn ($dia) => mb_strtolower(self::DIAS[$dia]))->values()->all();
+                $ultimo = array_pop($dias);
+
+                return ($dias ? implode(", ", $dias) . " y " : "") . $ultimo . " de " . $horas;
+            })
+            ->implode("; ");
+    }
+
     // Semanas por delante para las que se generan fichas (configuraciones_sistema).
     public function semanasGeneracion(): int
     {

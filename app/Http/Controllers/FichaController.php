@@ -6,6 +6,7 @@ use App\Models\Consultorio;
 use App\Models\Especialidad;
 use App\Models\MedicoEspecialidad;
 use App\Models\Paciente;
+use App\Services\AgendaService;
 use App\Services\CitaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -88,9 +89,7 @@ class FichaController extends Controller
                     // R-OCUP: ocupada = tiene una cita activa (no se guarda).
                     ->selectRaw("exists(select 1 from citas c where c.ficha_id = fichas.id and c.estado <> 'CANCELADA') as ocupada")
                     // Motivo del bloqueo que cruza la ficha (clínica, médico o consultorio), si lo hay.
-                    ->selectRaw("(select b.motivo from bloqueos_agenda b where b.inicio < (fichas.fecha + fichas.hora_fin) and b.fin > (fichas.fecha + fichas.hora_inicio)
-                        and (b.alcance = 'CLINICA' or (b.alcance = 'MEDICO' and b.medico_id = me.medico_id) or (b.alcance = 'CONSULTORIO' and b.consultorio_id = h.consultorio_id))
-                        order by b.inicio limit 1) as motivo_bloqueo")
+                    ->selectRaw(AgendaService::SQL_MOTIVO_BLOQUEO . " as motivo_bloqueo")
                     ->orderBy("personas.apellido_paterno")
                     ->orderBy("me.medico_id")
                     ->orderBy("fichas.fecha")

@@ -124,6 +124,8 @@
                                     <option :value="String(m.id)" x-text="m.nombre" :selected="String(m.id) === medicoId"></option>
                                 </template>
                             </select>
+                            {{-- Mejora a: días y horas en que atiende el médico en esta especialidad --}}
+                            <p class="mt-1 text-xs text-gray-600" x-show="medico" x-text="medico?.atiende" x-cloak></p>
                             <p class="js-error mt-2 text-sm text-red-600" data-campo="medico_id" hidden></p>
                             <x-input-error :messages="$errors->get('medico_id')" class="mt-2" />
                         </div>
@@ -141,6 +143,11 @@
                         <p class="text-sm font-medium text-gray-700">Horarios disponibles</p>
                         <p class="mt-1 text-sm text-gray-500" x-show="cargando">Cargando…</p>
                         <p class="mt-1 text-sm text-gray-600" x-show="! cargando && mensajeFichas" x-text="mensajeFichas"></p>
+                        {{-- Mejora b: el próximo día disponible (hasta 60 días después) --}}
+                        <p class="mt-1 text-sm text-gray-700" x-show="! cargando && proxima" x-cloak>
+                            El próximo día disponible es el <span class="font-medium" x-text="proxima?.texto"></span>.
+                            <button type="button" class="ms-2 text-indigo-600 font-semibold hover:underline" @click="irAProxima()">Ir a ese día</button>
+                        </p>
                         <p class="mt-1 text-sm text-gray-500" x-show="! cargando && ! mensajeFichas && ! fichas.length">Elija la especialidad, el médico y la fecha.</p>
                         <div class="mt-2 flex flex-wrap gap-2">
                             <template x-for="f in fichas" :key="f.id">

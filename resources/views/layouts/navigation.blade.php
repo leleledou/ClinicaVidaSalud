@@ -49,6 +49,27 @@
                         </x-nav-link>
                     @endcanany
 
+                    {{-- CU19 Consultar agenda médica: cualquier médico (agenda.consultar) o la propia (agenda.propia;
+                         reemplaza «Mis citas de hoy»: los botones de CU18 están en la agenda) --}}
+                    @can('agenda.consultar')
+                        <x-nav-link :href="route('citas.agenda')" :active="request()->routeIs('citas.agenda')">
+                            Agenda
+                        </x-nav-link>
+                    @elsecan('agenda.propia')
+                        @if (Auth::user()->persona?->medico)
+                            <x-nav-link :href="route('citas.agenda')" :active="request()->routeIs('citas.agenda')">
+                                Mi agenda
+                            </x-nav-link>
+                        @endif
+                    @endcan
+
+                    {{-- CU20 A1: historial de citas propio (y de los menores a cargo) --}}
+                    @can('citas.historial_propio')
+                        <x-nav-link :href="route('historiales-cita.listar')" :active="request()->routeIs('historiales-cita.*')">
+                            Mis citas
+                        </x-nav-link>
+                    @endcan
+
                     {{-- CU06 Gestionar especialidades --}}
                     @can('especialidades.gestionar')
                         <x-nav-link :href="route('especialidades.listar')" :active="request()->routeIs('especialidades.*')">
@@ -186,6 +207,24 @@
                     Citas
                 </x-responsive-nav-link>
             @endcanany
+
+            @can('agenda.consultar')
+                <x-responsive-nav-link :href="route('citas.agenda')" :active="request()->routeIs('citas.agenda')">
+                    Agenda
+                </x-responsive-nav-link>
+            @elsecan('agenda.propia')
+                @if (Auth::user()->persona?->medico)
+                    <x-responsive-nav-link :href="route('citas.agenda')" :active="request()->routeIs('citas.agenda')">
+                        Mi agenda
+                    </x-responsive-nav-link>
+                @endif
+            @endcan
+
+            @can('citas.historial_propio')
+                <x-responsive-nav-link :href="route('historiales-cita.listar')" :active="request()->routeIs('historiales-cita.*')">
+                    Mis citas
+                </x-responsive-nav-link>
+            @endcan
 
             @can('especialidades.gestionar')
                 <x-responsive-nav-link :href="route('especialidades.listar')" :active="request()->routeIs('especialidades.*')">

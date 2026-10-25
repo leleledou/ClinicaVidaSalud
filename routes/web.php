@@ -148,22 +148,6 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/{clave}','show')->name("configuraciones.mostrar");
     });
 
-    Route::prefix("recepcionistas")->controller(RecepcionistaController::class)->group(function(){
-        Route::get('/','index')->name("recepcionistas.listar");
-        Route::post('/','store')->name("recepcionistas.guardar");
-        Route::post('/update','update')->name("recepcionistas.modificar");
-        Route::post('/delete','delete')->name("recepcionistas.eliminar");
-        Route::get('/{id}','show')->name("recepcionistas.mostrar");
-    });
-
-    Route::prefix("administradores")->controller(AdministradorController::class)->group(function(){
-        Route::get('/','index')->name("administradores.listar");
-        Route::post('/','store')->name("administradores.guardar");
-        Route::post('/update','update')->name("administradores.modificar");
-        Route::post('/delete','delete')->name("administradores.eliminar");
-        Route::get('/{id}','show')->name("administradores.mostrar");
-    });
-
     // CU07 Gestionar médicos (RF03). delete = desactivar (RN11).
     Route::prefix("medicos")->middleware("can:medicos.gestionar")->controller(MedicoController::class)->group(function(){
         Route::get('/','index')->name("medicos.listar");
@@ -202,14 +186,6 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::post('/delete','delete')->name("especialidades.eliminar");
         Route::post('/activar','activar')->name("especialidades.activar");
         Route::get('/{id}','show')->name("especialidades.mostrar");
-    });
-
-    Route::prefix("medicos-especialidades")->controller(MedicoEspecialidadController::class)->group(function(){
-        Route::get('/','index')->name("medicos-especialidades.listar");
-        Route::post('/','store')->name("medicos-especialidades.guardar");
-        Route::post('/update','update')->name("medicos-especialidades.modificar");
-        Route::post('/delete','delete')->name("medicos-especialidades.eliminar");
-        Route::get('/{id}','show')->name("medicos-especialidades.mostrar");
     });
 
     Route::prefix("aseguradoras")->controller(AseguradoraController::class)->group(function(){
@@ -256,24 +232,32 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/{id}','show')->name("bloqueos.mostrar");
     });
 
-
     // CU15 Programar cita (citas.programar = recepción; citas.autoservicio = paciente, A1). La
-    // autorización se revisa en el controlador. /crear, /fichas-disponibles y /buscar-pacientes van
-    // antes de /{id}, que además solo acepta números. update y delete: CU16 y CU17 (pendientes).
+    // autorización se revisa en el controlador y en CitaService. /crear, /fichas-disponibles y
+    // /buscar-pacientes van antes de /{id}, que además solo acepta números.
+    // update = CU16 Reprogramar (y /reasignar, A1); delete = CU17 Cancelar (no elimina el registro);
+    // /estado = CU18 Registrar asistencia (confirmar, atendida, inasistencia). El id va oculto.
+    // /agenda = CU19 Consultar agenda médica (agenda.consultar o agenda.propia).
     Route::prefix("citas")->controller(CitaController::class)->group(function(){
         Route::get('/','index')->name("citas.listar");
+        Route::get('/agenda','agenda')->name("citas.agenda");
         Route::get('/crear','create')->name("citas.crear");
         Route::get('/fichas-disponibles','fichasDisponibles')->name("citas.fichas");
         Route::get('/buscar-pacientes','buscarPacientes')->name("citas.pacientes");
         Route::post('/','store')->name("citas.guardar");
         Route::post('/update','update')->name("citas.modificar");
+        Route::post('/reasignar','reasignar')->name("citas.reasignar");
         Route::post('/delete','delete')->name("citas.eliminar");
+        Route::post('/estado','cambiarEstado')->name("citas.estado");
         Route::get('/{id}','show')->whereNumber('id')->name("citas.mostrar");
     });
 
+    // CU20 Consultar historial de citas (citas.historial_consultar o citas.historial_propio; se
+    // revisa en el controlador). index = historial del paciente (?paciente_id=); show = trazabilidad
+    // de una cita (id de la cita).
     Route::prefix("historiales-cita")->controller(HistorialCitaController::class)->group(function(){
         Route::get('/','index')->name("historiales-cita.listar");
-        Route::get('/{id}','show')->name("historiales-cita.mostrar");
+        Route::get('/{id}','show')->whereNumber('id')->name("historiales-cita.mostrar");
     });
 
     Route::prefix("historias-clinicas")->controller(HistoriaClinicaController::class)->group(function(){

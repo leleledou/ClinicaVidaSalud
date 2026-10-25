@@ -9,14 +9,6 @@
     $registradoPor = $paciente->recepcionista
         ? $paciente->recepcionista->persona->nombre_completo . ' (' . $paciente->recepcionista->codigo . ')'
         : 'Autorregistro';
-    // Colores por estado de la cita.
-    $colorCita = fn ($estado) => match ($estado) {
-        'PROGRAMADA' => 'bg-blue-100 text-blue-800',
-        'CONFIRMADA' => 'bg-indigo-100 text-indigo-800',
-        'ATENDIDA' => 'bg-green-100 text-green-800',
-        'CANCELADA' => 'bg-gray-200 text-gray-700',
-        default => 'bg-red-100 text-red-800',
-    };
 @endphp
 
 <x-app-layout>
@@ -42,6 +34,13 @@
                         Vínculos
                     </a>
                 @endcanany
+                {{-- CU20 paso 1: historial completo de citas del paciente --}}
+                @can('citas.historial_consultar')
+                    <a href="{{ route('historiales-cita.listar', ['paciente_id' => $paciente->id]) }}"
+                       class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50">
+                        Historial de citas
+                    </a>
+                @endcan
                 <a href="{{ route('pacientes.listar') }}" class="text-sm text-indigo-600 hover:underline">Volver a la lista</a>
             </div>
         </div>
@@ -131,9 +130,18 @@
                 </ul>
             </div>
 
-            {{-- CU10 A4: citas del paciente, de la más reciente a la más antigua (incluidas las canceladas) --}}
+            {{-- CU10 A4 / CU20 paso 1: las 5 citas más recientes (incluidas las canceladas) y el enlace al historial completo --}}
             <div class="bg-white shadow-sm sm:rounded-lg p-6 space-y-4">
-                <h3 class="text-lg font-medium text-gray-900">Citas</h3>
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-medium text-gray-900">Citas recientes</h3>
+                    @can('citas.historial_consultar')
+                        @if ($totalCitas > 0)
+                            <a href="{{ route('historiales-cita.listar', ['paciente_id' => $paciente->id]) }}" class="text-sm text-indigo-600 hover:underline">
+                                Ver el historial completo ({{ $totalCitas }} {{ $totalCitas === 1 ? 'cita' : 'citas' }})
+                            </a>
+                        @endif
+                    @endcan
+                </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead>
@@ -150,14 +158,19 @@
                         <tbody class="divide-y divide-gray-100">
                             @forelse ($citas as $cita)
                                 <tr>
-                                    <td class="px-3 py-3 whitespace-nowrap">{{ $cita->codigo }}</td>
+                                    <td class="px-3 py-3 whitespace-nowrap">
+                                        {{-- CU20 paso 4: trazabilidad de la cita --}}
+                                        @can('citas.historial_consultar')
+                                            <a href="{{ route('historiales-cita.mostrar', $cita->id) }}" class="text-indigo-600 hover:underline">{{ $cita->codigo }}</a>
+                                        @else
+                                            {{ $cita->codigo }}
+                                        @endcan
+                                    </td>
                                     <td class="px-3 py-3 whitespace-nowrap">{{ \Illuminate\Support\Carbon::parse($cita->fecha)->format('d/m/Y') }}</td>
                                     <td class="px-3 py-3 whitespace-nowrap">{{ substr($cita->hora_inicio, 0, 5) }}</td>
                                     <td class="px-3 py-3">{{ $cita->medico_nombres }} {{ $cita->medico_apellido }}</td>
                                     <td class="px-3 py-3">{{ $cita->especialidad }}</td>
-                                    <td class="px-3 py-3">
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $colorCita($cita->estado) }}">{{ $cita->estado }}</span>
-                                    </td>
+                                    <td class="px-3 py-3"><x-estado-cita :estado="$cita->estado" /></td>
                                     <td class="px-3 py-3 whitespace-nowrap">{{ \Illuminate\Support\Carbon::parse($cita->fecha_registro)->format('d/m/Y H:i') }}</td>
                                 </tr>
                             @empty

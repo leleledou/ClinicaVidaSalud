@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class Paciente extends Model
@@ -133,5 +134,47 @@ class Paciente extends Model
             ->where("es_responsable_legal", true)
             ->whereNotNull("fecha_verificacion")
             ->exists();
+    }
+
+    // CU15 A1 / CU20 A1 / R-TUTOR: el paciente de la persona y los menores de los que es responsable
+    // legal ACTIVO y verificado (cualquier estado: el historial de un paciente inactivo se consulta igual).
+    public static function aCargoDe(?Persona $persona): Collection
+    {
+        if ($persona === null) {
+            return collect();
+        }
+
+        $menores = self::with("persona")
+            ->whereIn("id", VinculoPaciente::where("persona_id", $persona->id)
+                ->where("estado", "ACTIVO")
+                ->where("es_responsable_legal", true)
+                ->whereNotNull("fecha_verificacion")
+                ->select("paciente_id"))
+            ->orderBy("codigo")
+            ->get()
+            ->filter(fn ($paciente) => $paciente->esMenor());
+
+        $propio = $persona->paciente?->load("persona");
+
+        return collect($propio ? [$propio] : [])->concat($menores)->values();
+    }
+
+    // CU11 A1 / CU20: subconsulta «el paciente tiene o tuvo alguna cita con este médico»
+    // (citas → fichas → horarios → medicos_especialidades), sobre la tabla pacientes.
+    public static function citasConMedico(int $medicoId): \Closure
+    {
+        return fn ($consulta) => $consulta->selectRaw("1")
+            ->from("citas")
+            ->join("fichas", "fichas.id", "=", "citas.ficha_id")
+            ->join("horarios_atencion", "horarios_atencion.id", "=", "fichas.horario_atencion_id")
+            ->join("medicos_especialidades", "medicos_especialidades.id", "=", "horarios_atencion.medico_especialidad_id")
+            ->whereColumn("citas.paciente_id", "pacientes.id")
+            ->where("medicos_especialidades.medico_id", $medicoId);
+    }
+
+    // CU11 A1 / CU20: el paciente tiene o tuvo alguna cita con este médico.
+    public function tuvoCitaCon(int $medicoId): bool
+    {
+        return self::whereKey($this->id)->whereExists(self::citasConMedico($medicoId))->exists();
     }
 }

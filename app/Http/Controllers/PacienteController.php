@@ -37,7 +37,7 @@ class PacienteController extends Controller
 
         // CU11 A1: un médico solo ve a los pacientes con los que tiene o tuvo alguna cita.
         if ($medicoId = $this->medicoDelUsuario($request)) {
-            $consulta->whereExists($this->citasConMedico($medicoId));
+            $consulta->whereExists(Paciente::citasConMedico($medicoId));
         }
 
         // CU11 paso 4: lista paginada (15).
@@ -114,11 +114,11 @@ class PacienteController extends Controller
 
         // CU11 A1: un médico solo ve a los pacientes con los que tiene o tuvo alguna cita.
         if ($medicoId = $this->medicoDelUsuario($request)) {
-            $tieneCita = Paciente::where("pacientes.id", $paciente->id)->whereExists($this->citasConMedico($medicoId))->exists();
-            abort_unless($tieneCita, 403);
+            abort_unless($paciente->tuvoCitaCon($medicoId), 403);
         }
 
-        // CU10 A4: todas sus citas (incluidas las canceladas), de la más reciente a la más antigua.
+        // CU10 A4 / CU20 paso 1: las 5 citas más recientes (incluidas las canceladas); el resto, en el historial.
+        $totalCitas = Cita::where("paciente_id", $paciente->id)->count();
         $citas = Cita::join("fichas", "fichas.id", "=", "citas.ficha_id")
             ->join("horarios_atencion", "horarios_atencion.id", "=", "fichas.horario_atencion_id")
             ->join("medicos_especialidades", "medicos_especialidades.id", "=", "horarios_atencion.medico_especialidad_id")
@@ -126,10 +126,11 @@ class PacienteController extends Controller
             ->join("personas", "personas.id", "=", "medicos.persona_id")
             ->join("especialidades", "especialidades.id", "=", "medicos_especialidades.especialidad_id")
             ->where("citas.paciente_id", $paciente->id)
-            ->select("citas.codigo", "citas.estado", "citas.fecha_registro", "fichas.fecha", "fichas.hora_inicio",
+            ->select("citas.id", "citas.codigo", "citas.estado", "citas.fecha_registro", "fichas.fecha", "fichas.hora_inicio",
                 "personas.nombres as medico_nombres", "personas.apellido_paterno as medico_apellido", "especialidades.nombre as especialidad")
             ->orderByDesc("fichas.fecha")
             ->orderByDesc("fichas.hora_inicio")
+            ->limit(5)
             ->get();
 
         // CU13: resumen de sus vínculos activos (contactos de emergencia y responsables legales).
@@ -138,6 +139,7 @@ class PacienteController extends Controller
         return view("pacientes.show", [
             "paciente" => $paciente,
             "citas" => $citas,
+            "totalCitas" => $totalCitas,
             "vinculos" => $vinculos,
             "edadMayoria" => $this->edadMayoria(),
         ]);
@@ -212,19 +214,6 @@ class PacienteController extends Controller
     private function medicoDelUsuario(Request $request): ?int
     {
         return $request->user()->persona?->medico?->id;
-    }
-
-    // CU11 A1: subconsulta «el paciente tiene o tuvo alguna cita con este médico»
-    // (citas → fichas → horarios → medicos_especialidades).
-    private function citasConMedico(int $medicoId): \Closure
-    {
-        return fn ($consulta) => $consulta->selectRaw("1")
-            ->from("citas")
-            ->join("fichas", "fichas.id", "=", "citas.ficha_id")
-            ->join("horarios_atencion", "horarios_atencion.id", "=", "fichas.horario_atencion_id")
-            ->join("medicos_especialidades", "medicos_especialidades.id", "=", "horarios_atencion.medico_especialidad_id")
-            ->whereColumn("citas.paciente_id", "pacientes.id")
-            ->where("medicos_especialidades.medico_id", $medicoId);
     }
 
     // Datos del paciente para la bitácora (antes y después de un cambio).

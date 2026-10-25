@@ -3,7 +3,7 @@ import './bootstrap';
 import Alpine from 'alpinejs';
 import { formularioPersona, validarMedico, validarPaciente, validarRegistro, validarRol, validarUsuario, validarVinculo } from './personas';
 import { revisarPassword, requisitosPassword } from './password';
-import { formularioCita, validarCita, validarFiltrosFichas } from './citas';
+import { formularioCambioFicha, formularioCita, validarCancelacion, validarCita, validarFiltrosAgenda, validarFiltrosFichas, validarFiltrosHistorial } from './citas';
 
 window.Alpine = Alpine;
 
@@ -25,5 +25,11 @@ window.requisitosPassword = requisitosPassword;
 window.validarFiltrosFichas = validarFiltrosFichas;
 window.validarCita = validarCita;
 Alpine.data('formularioCita', formularioCita);
+// CU16: reprogramar y reasignar. CU17: motivo y confirmación antes de cancelar.
+Alpine.data('formularioCambioFicha', formularioCambioFicha);
+window.validarCancelacion = validarCancelacion;
+// CU19 y CU20: filtros de la agenda y del historial.
+window.validarFiltrosAgenda = validarFiltrosAgenda;
+window.validarFiltrosHistorial = validarFiltrosHistorial;
 
 Alpine.start();

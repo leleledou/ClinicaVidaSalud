@@ -1,9 +1,21 @@
 /*
- * CU14 Consultar disponibilidad de fichas y CU15 Programar cita: validación en el cliente y
- * componente Alpine del formulario de cita. El servidor vuelve a validar todo (CitaService).
+ * CU14 Consultar disponibilidad de fichas, CU15 Programar cita, CU16 Reprogramar cita, CU17 Cancelar
+ * cita, CU18 Registrar asistencia, CU19 Consultar agenda y CU20 Consultar historial: validación en el
+ * cliente y componentes Alpine de los formularios. El servidor vuelve a validar todo.
  */
 
 import { mostrarErrores } from './personas';
+
+// CU15 paso 3 / CU16 paso 3 (RF06): SOLO las fichas disponibles del médico en la especialidad y la fecha.
+// Respuesta: { fichas: [...], proxima: { fecha, texto } | null } (mejora b: el próximo día disponible).
+async function pedirFichas(url, medicoId, especialidadId, fecha) {
+    const parametros = new URLSearchParams({ medico_id: medicoId, especialidad_id: especialidadId, fecha });
+    const respuesta = await fetch(url + '?' + parametros, {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    if (! respuesta.ok) throw new Error();
+    return respuesta.json();
+}
 
 // Fecha local AAAA-MM-DD a partir de un Date.
 function aTexto(fecha) {
@@ -81,6 +93,8 @@ export function formularioCita(config) {
         fichaId: '',
         cargando: false,
         mensajeFichas: '',
+        // CU15 / CU16 mejora b: el próximo día con fichas disponibles ({ fecha, texto } o null).
+        proxima: null,
         motivo: '',
         seguroId: '',
         codigoAutorizacion: '',
@@ -133,6 +147,12 @@ export function formularioCita(config) {
         get seguro() {
             return (this.paciente?.seguros ?? []).find((s) => String(s.id) === this.seguroId) ?? null;
         },
+        // Mejora b: salta al próximo día disponible.
+        irAProxima() {
+            if (! this.proxima) return;
+            this.fecha = this.proxima.fecha;
+            this.cargarFichas();
+        },
 
         // CU15 paso 1: buscar pacientes ACTIVOS (mismo criterio que CU11).
         async buscarPacientes() {
@@ -176,6 +196,7 @@ export function formularioCita(config) {
             this.fichas = [];
             this.fichaId = '';
             this.mensajeFichas = '';
+            this.proxima = null;
             this.resumen = false;
         },
 
@@ -190,12 +211,9 @@ export function formularioCita(config) {
 
             this.cargando = true;
             try {
-                const parametros = new URLSearchParams({ medico_id: this.medicoId, especialidad_id: this.especialidadId, fecha: this.fecha });
-                const respuesta = await fetch(config.urlFichas + '?' + parametros, {
-                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                });
-                if (! respuesta.ok) throw new Error();
-                this.fichas = await respuesta.json();
+                const datos = await pedirFichas(config.urlFichas, this.medicoId, this.especialidadId, this.fecha);
+                this.fichas = datos.fichas;
+                this.proxima = datos.proxima;
                 if (this.fichas.length === 0) this.mensajeFichas = 'El médico no tiene horarios disponibles ese día.';
                 if (preseleccion && this.fichas.some((f) => String(f.id) === preseleccion)) this.fichaId = preseleccion;
             } catch {
@@ -213,4 +231,175 @@ export function formularioCita(config) {
             }
         },
     };
+}
+
+// CU16 paso 4 y A1: no se confirma el cambio sin la fecha (no pasada) y la nueva ficha; en la
+// reasignación, además, sin el otro médico. Motivo de 500 caracteres como máximo.
+export function validarCambioFicha(formulario, componente, hoy) {
+    const errores = {};
+
+    if (componente.reasignar && ! componente.medicoId) errores.medico_id = 'Elija el médico.';
+    if (! componente.fecha) {
+        errores.fecha = 'Elija la fecha.';
+    } else if (componente.fecha < hoy) {
+        errores.fecha = 'La fecha no puede ser anterior a hoy.';
+    }
+    if (! componente.fichaId) errores.ficha_id = 'Elija la nueva ficha.';
+    if ((componente.motivo ?? '').length > 500) errores.motivo = 'El motivo no puede superar los 500 caracteres.';
+
+    return mostrarErrores(formulario, errores);
+}
+
+// CU17 paso 3: motivo obligatorio (máximo 500 caracteres) y confirmación antes de cancelar.
+export function validarCancelacion(formulario, codigo) {
+    const motivo = (formulario.querySelector('[name="motivo_cancelacion"]')?.value ?? '').trim();
+    const errores = {};
+
+    if (motivo === '') {
+        errores.motivo_cancelacion = 'El motivo de cancelación es obligatorio.';
+    } else if (motivo.length > 500) {
+        errores.motivo_cancelacion = 'El motivo de cancelación no puede superar los 500 caracteres.';
+    }
+
+    if (! mostrarErrores(formulario, errores)) return false;
+    return window.confirm('¿Cancelar la cita ' + codigo + '? El horario quedará disponible para otro paciente.');
+}
+
+/*
+ * Componente Alpine de CU16: reprogramar (mismo médico, pasos 3 y 4) o reasignar (otro médico de
+ * la misma especialidad, A1). Reutiliza la consulta de fichas disponibles de CU15 (citas.fichas).
+ * config: { reasignar (bool), urlFichas, especialidadId, medicoId (fijo al reprogramar), medicos
+ *           (A1: los otros médicos), actual (texto de la ficha actual), codigo, inicial, hoy }
+ */
+export function formularioCambioFicha(config) {
+    return {
+        reasignar: config.reasignar,
+        medicos: config.medicos ?? [],
+        medicoId: '',
+        fecha: '',
+        fichas: [],
+        fichaId: '',
+        cargando: false,
+        mensajeFichas: '',
+        // CU15 / CU16 mejora b: el próximo día con fichas disponibles ({ fecha, texto } o null).
+        proxima: null,
+        motivo: '',
+        // CU16 paso 4: resumen «ficha actual → nueva» antes de confirmar.
+        resumen: false,
+
+        init() {
+            const inicial = config.inicial ?? {};
+            this.medicoId = String(config.reasignar ? (inicial.medico_id ?? '') : config.medicoId);
+            this.fecha = inicial.fecha ?? '';
+            this.motivo = inicial.motivo ?? '';
+            if (this.fecha) this.cargarFichas(String(inicial.ficha_id ?? ''));
+        },
+
+        get medico() {
+            return this.medicos.find((m) => String(m.id) === this.medicoId) ?? null;
+        },
+        // Mejora a: días y horas en que atiende el médico (el actual o, en A1, el elegido).
+        get atiende() {
+            return this.reasignar ? (this.medico?.atiende ?? '') : (config.atiende ?? '');
+        },
+        get ficha() {
+            return this.fichas.find((f) => String(f.id) === String(this.fichaId)) ?? null;
+        },
+        // Mejora b: salta al próximo día disponible.
+        irAProxima() {
+            if (! this.proxima) return;
+            this.fecha = this.proxima.fecha;
+            this.cargarFichas();
+        },
+        // Texto de la nueva ficha para el resumen.
+        get textoNueva() {
+            if (! this.ficha) return '';
+            return this.fecha.split('-').reverse().join('/') + ' ' + this.ficha.hora_inicio + '–' + this.ficha.hora_fin
+                + (this.medico ? ' con ' + this.medico.nombre : '');
+        },
+
+        limpiarFichas() {
+            this.fichas = [];
+            this.fichaId = '';
+            this.mensajeFichas = '';
+            this.proxima = null;
+            this.resumen = false;
+        },
+
+        // CU16 paso 3: SOLO las fichas disponibles del médico (el mismo, o el elegido en A1) en esa fecha.
+        async cargarFichas(preseleccion = '') {
+            this.limpiarFichas();
+            if (! this.medicoId || ! this.fecha) return;
+            if (this.fecha < config.hoy) {
+                this.mensajeFichas = 'La fecha no puede ser anterior a hoy.';
+                return;
+            }
+
+            this.cargando = true;
+            try {
+                const datos = await pedirFichas(config.urlFichas, this.medicoId, config.especialidadId, this.fecha);
+                this.fichas = datos.fichas;
+                this.proxima = datos.proxima;
+                if (this.fichas.length === 0) this.mensajeFichas = 'El médico no tiene horarios disponibles ese día.';
+                if (preseleccion && this.fichas.some((f) => String(f.id) === preseleccion)) this.fichaId = preseleccion;
+            } catch {
+                this.mensajeFichas = 'No se pudieron cargar los horarios. Intente de nuevo.';
+            } finally {
+                this.cargando = false;
+            }
+        },
+
+        // CU16 paso 4: valida y muestra el resumen antes de confirmar.
+        revisar() {
+            this.resumen = validarCambioFicha(this.$refs.formulario, this, config.hoy);
+        },
+
+        // Al enviar: valida otra vez y, en la reasignación, pide confirmación (cancela la cita original).
+        enviar(evento) {
+            if (! validarCambioFicha(evento.target, this, config.hoy)) {
+                evento.preventDefault();
+                this.resumen = false;
+                return;
+            }
+            if (this.reasignar && ! window.confirm('¿Reasignar la cita ' + config.codigo + ' a ' + this.textoNueva + '? La cita actual quedará cancelada y se registrará una nueva.')) {
+                evento.preventDefault();
+            }
+        },
+    };
+}
+
+// Fecha AAAA-MM-DD que existe en el calendario.
+function fechaValida(texto) {
+    if (! /^\d{4}-\d{2}-\d{2}$/.test(texto)) return false;
+    const fecha = new Date(texto + 'T00:00:00');
+    return ! Number.isNaN(fecha.getTime()) && aTexto(fecha) === texto;
+}
+
+// CU19 paso 3: fecha válida y, para quien no es médico, el médico obligatorio.
+export function validarFiltrosAgenda(formulario, requiereMedico) {
+    const datos = Object.fromEntries(new FormData(formulario));
+    const errores = {};
+
+    if (requiereMedico && ! datos.medico_id) errores.medico_id = 'Elija el médico.';
+    if (! datos.fecha) {
+        errores.fecha = 'Elija la fecha.';
+    } else if (! fechaValida(datos.fecha)) {
+        errores.fecha = 'La fecha no es válida.';
+    }
+
+    return mostrarErrores(formulario, errores);
+}
+
+// CU20 paso 3: fechas válidas (opcionales) y «desde» no posterior a «hasta».
+export function validarFiltrosHistorial(formulario) {
+    const datos = Object.fromEntries(new FormData(formulario));
+    const errores = {};
+
+    if (datos.desde && ! fechaValida(datos.desde)) errores.desde = 'La fecha desde no es válida.';
+    if (datos.hasta && ! fechaValida(datos.hasta)) errores.hasta = 'La fecha hasta no es válida.';
+    if (! errores.desde && ! errores.hasta && datos.desde && datos.hasta && datos.desde > datos.hasta) {
+        errores.hasta = 'La fecha desde no puede ser posterior a la fecha hasta.';
+    }
+
+    return mostrarErrores(formulario, errores);
 }
