@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Bitacora;
 use App\Models\Usuario;
+use App\Rules\PoliticaPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -62,26 +63,9 @@ class PasswordController extends Controller
                 },
             ],
             "password" => [
-                "required", "string", "min:8",
-                // CU03 paso 5: mayúscula, minúscula, número y símbolo.
-                function (string $atributo, mixed $valor, \Closure $fallar) {
-                    // Si no es texto, ya lo informa la regla "string".
-                    if (! is_string($valor)) {
-                        return;
-                    }
-                    if (! preg_match("/\p{Lu}/u", $valor)) {
-                        $fallar("La nueva contraseña debe tener al menos una letra mayúscula.");
-                    }
-                    if (! preg_match("/\p{Ll}/u", $valor)) {
-                        $fallar("La nueva contraseña debe tener al menos una letra minúscula.");
-                    }
-                    if (! preg_match("/\d/", $valor)) {
-                        $fallar("La nueva contraseña debe tener al menos un número.");
-                    }
-                    if (! preg_match("/[^\p{L}\p{N}\s]/u", $valor)) {
-                        $fallar("La nueva contraseña debe tener al menos un símbolo.");
-                    }
-                },
+                "required", "string",
+                // CU03 paso 5: largo, mayúscula, minúscula, número y símbolo (regla compartida con CU12).
+                new PoliticaPassword("La nueva contraseña"),
                 // CU03 paso 5: distinta de la actual.
                 function (string $atributo, mixed $valor, \Closure $fallar) use ($usuario) {
                     if (is_string($valor) && Hash::check($valor, $usuario->password)) {
@@ -102,7 +86,6 @@ class PasswordController extends Controller
             "password_actual.string" => "La contraseña actual es incorrecta.",
             "password.required" => "El campo Nueva contraseña es obligatorio.",
             "password.string" => "La nueva contraseña debe ser un texto.",
-            "password.min" => "La nueva contraseña debe tener al menos 8 caracteres.",
             "password.confirmed" => "La confirmación no coincide con la nueva contraseña."
         ];
     }

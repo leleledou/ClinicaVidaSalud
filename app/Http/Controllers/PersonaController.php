@@ -33,13 +33,18 @@ class PersonaController extends Controller
         //
     }
 
-    // CU07 paso 4 / CU10 paso 2 / CU04 paso 3: buscar una persona por documento (lo usa el botón
-    // «Buscar» de los formularios de médico, paciente y usuario). Devuelve JSON.
+    // CU07 paso 4 / CU10 paso 2 / CU04 paso 3 / CU13 paso 3: buscar una persona por documento (lo usa
+    // el botón «Buscar» de los formularios de médico, paciente, usuario y vínculo). Devuelve JSON.
     public function buscar(Request $request)
     {
-        // Solo quien registra médicos, pacientes o usuarios.
+        // Quien registra médicos, pacientes, usuarios o vínculos.
         $usuario = $request->user();
-        abort_unless($usuario->can("medicos.gestionar") || $usuario->can("pacientes.gestionar") || $usuario->can("usuarios.gestionar"), 403);
+        $esPersonal = $usuario->can("medicos.gestionar") || $usuario->can("pacientes.gestionar")
+            || $usuario->can("usuarios.gestionar") || $usuario->can("vinculos.gestionar");
+
+        // CU13 A1: el paciente, solo para registrar sus propios contactos.
+        $propioPaciente = ! $esPersonal && $usuario->can("perfil.gestionar") ? $usuario->persona?->paciente : null;
+        abort_unless($esPersonal || $propioPaciente, 403);
 
         $datos = $request->validate([
             "tipo" => ["required", "in:" . implode(",", array_keys(Persona::TIPOS_DOCUMENTO))],
@@ -58,6 +63,17 @@ class PersonaController extends Controller
 
         if ($persona === null) {
             return response()->json(["existe" => false]);
+        }
+
+        // CU13 A1: al paciente solo se le confirma el nombre (sin teléfono, correo ni dirección de
+        // terceros); el servidor reutiliza a la persona al guardar.
+        if ($propioPaciente) {
+            return response()->json([
+                "existe" => true,
+                "reducida" => true,
+                "propio" => $persona->id === $propioPaciente->persona_id,
+                "persona" => ["id" => $persona->id, "nombres" => $persona->nombres, "apellido_paterno" => $persona->apellido_paterno],
+            ]);
         }
 
         // Perfil resumido: id, código y estado (o null si la persona no lo tiene).

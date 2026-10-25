@@ -1,13 +1,15 @@
 {{--
-    Datos de la persona en los formularios de médico (CU07 paso 4), paciente (CU10 pasos 2 a 5)
-    y usuario (CU04 paso 4). Se usa dentro del componente Alpine formularioPersona (resources/js/personas.js).
-    Parámetros: $perfil ('medico' | 'paciente' | 'usuario') y $volvioFormulario (mostrar los errores del servidor).
+    Datos de la persona en los formularios de médico (CU07 paso 4), paciente (CU10 pasos 2 a 5),
+    usuario (CU04 paso 4) y vínculo (CU13 paso 3). Se usa dentro del componente Alpine formularioPersona
+    (resources/js/personas.js).
+    Parámetros: $perfil ('medico' | 'paciente' | 'usuario' | 'vinculo') y $volvioFormulario (mostrar los errores del servidor).
 --}}
 @php
     $esMedico = $perfil === 'medico';
     $leyendaDocumento = match ($perfil) {
         'medico' => 'Documento',
         'usuario' => 'Documento (obligatorio para el personal: administrador, recepcionista y médico)',
+        'vinculo' => 'Documento de la persona vinculada (obligatorio para el responsable legal)',
         default => 'Documento (un menor de edad puede registrarse sin número)',
     };
     // En el formulario de usuario hay además un correo de acceso: este es el de contacto.

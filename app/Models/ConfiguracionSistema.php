@@ -18,4 +18,10 @@ class ConfiguracionSistema extends Model
         "tipo_dato",
         "descripcion"
     ];
+
+    // Valor entero de un parámetro (por ejemplo, edad_mayoria).
+    public static function entero(string $clave): int
+    {
+        return (int) self::findOrFail($clave)->valor;
+    }
 }

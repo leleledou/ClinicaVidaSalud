@@ -3,6 +3,7 @@
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\PasswordController;
+use App\Http\Controllers\RegistroController;
 use App\Http\Controllers\RolController;
 use App\Http\Controllers\PermisoController;
 use App\Http\Controllers\PersonaController;
@@ -44,6 +45,21 @@ Route::middleware("guest")->group(function(){
         Route::get('/','mostrar')->name("login");
         Route::post('/','ingresar')->name("login.ingresar");
     });
+
+    // CU12 Autorregistrarse como paciente (solo sin sesión). throttle: limita los envíos repetidos.
+    Route::prefix("registro")->controller(RegistroController::class)->group(function(){
+        Route::get('/','create')->name("registro");
+        Route::post('/','store')->middleware("throttle:10,1")->name("registro.guardar");
+    });
+});
+
+// CU12 paso 8 y A2: verificar el correo y reenviar el enlace funcionan con o sin sesión (el
+// paciente que ya inició sesión llega aquí desde el aviso del panel). El enlace de verificación
+// es una URL firmada temporal: la firma se revisa en el controlador para mostrar el mensaje en español.
+Route::prefix("registro")->controller(RegistroController::class)->group(function(){
+    Route::get('/verificar/{id}/{hash}','verificar')->name("registro.verificar");
+    Route::get('/reenviar','formularioReenviar')->name("registro.reenviar");
+    Route::post('/reenviar','reenviar')->middleware("throttle:5,1")->name("registro.reenviar.enviar");
 });
 
 // CU02 y CU03: con sesión, pero SIN "cambio.password" (quien tiene contraseña
@@ -162,12 +178,14 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/{id}','show')->middleware("can:pacientes.buscar")->name("pacientes.mostrar");
     });
 
+    // CU13 Gestionar vínculos del paciente. La autorización se revisa en el controlador (recepción con
+    // vinculos.gestionar / vinculos.verificar, o el propio paciente, A1). delete = desactivar (A2).
     Route::prefix("vinculos-paciente")->controller(VinculoPacienteController::class)->group(function(){
         Route::get('/','index')->name("vinculos-paciente.listar");
         Route::post('/','store')->name("vinculos-paciente.guardar");
         Route::post('/update','update')->name("vinculos-paciente.modificar");
         Route::post('/delete','delete')->name("vinculos-paciente.eliminar");
-        Route::get('/{id}','show')->name("vinculos-paciente.mostrar");
+        Route::post('/verificar','verificar')->name("vinculos-paciente.verificar");
     });
 
     // CU06 Gestionar especialidades (RF04). delete = desactivar (RN11).
@@ -214,11 +232,13 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/{id}','show')->name("consultorios.mostrar");
     });
 
-    Route::prefix("horarios")->controller(HorarioAtencionController::class)->group(function(){
+    // CU09 Gestionar horarios de atención (RF05). Sin update: un horario no se edita, se cierra
+    // su vigencia (delete, A1) y se registra uno nuevo. generar = más semanas de fichas (A2).
+    Route::prefix("horarios")->middleware("can:horarios.gestionar")->controller(HorarioAtencionController::class)->group(function(){
         Route::get('/','index')->name("horarios.listar");
         Route::post('/','store')->name("horarios.guardar");
-        Route::post('/update','update')->name("horarios.modificar");
         Route::post('/delete','delete')->name("horarios.eliminar");
+        Route::post('/generar','generarFichas')->name("horarios.generar");
         Route::get('/{id}','show')->name("horarios.mostrar");
     });
 

@@ -14,6 +14,9 @@
         </div>
     @endif
 
+    {{-- CU12 paso 7: en desarrollo (MAIL_MAILER=log) se muestra además el enlace de verificación --}}
+    @include('auth._enlace-desarrollo')
+
     <x-input-error :messages="$errors->get('usuario')" class="mb-4" />
 
     {{-- CU01 paso 2: formulario. novalidate: la validación la hace el script de abajo, en español. --}}
@@ -37,7 +40,10 @@
 
         {{-- Sin «Recordarme»: la tabla usuarios no tiene remember_token y una sesión
              recordada saltaría el cierre por inactividad (CU02 A1). --}}
-        <div class="flex items-center justify-end mt-4">
+        <div class="flex items-center justify-between mt-4">
+            {{-- CU12 Autorregistrarse como paciente --}}
+            <a href="{{ route('registro') }}" class="text-sm text-indigo-600 hover:underline">¿Eres paciente? Crea tu cuenta</a>
+
             <x-primary-button>
                 Ingresar
             </x-primary-button>

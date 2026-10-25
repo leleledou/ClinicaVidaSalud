@@ -72,64 +72,38 @@
         </div>
     </div>
 
-    {{-- CU03 paso 5: validación en el navegador mientras se escribe. El servidor vuelve a validar. --}}
+    {{-- CU03 paso 5: validación en el navegador mientras se escribe (requisitos compartidos con CU12 en
+         resources/js/password.js; se espera a DOMContentLoaded porque app.js se carga como módulo).
+         El servidor vuelve a validar. --}}
     <script>
-        (function () {
+        document.addEventListener('DOMContentLoaded', function () {
             const actual = document.getElementById('password_actual');
             const nueva = document.getElementById('password');
             const confirmacion = document.getElementById('password_confirmation');
 
-            // Las mismas reglas que PasswordController::reglas().
-            function revisar() {
-                const valor = nueva.value;
-                return {
-                    largo: valor.length >= 8,
-                    mayuscula: /\p{Lu}/u.test(valor),
-                    minuscula: /\p{Ll}/u.test(valor),
-                    numero: /\d/.test(valor),
-                    simbolo: /[^\p{L}\p{N}\s]/u.test(valor),
-                    distinta: valor !== '' && valor !== actual.value,
-                    confirmacion: valor !== '' && valor === confirmacion.value,
-                };
-            }
-
-            // Verde = cumplido, rojo = falta (gris mientras no se escribe nada).
-            function pintar() {
-                const estado = revisar();
-                document.querySelectorAll('#requisitos li').forEach(function (item) {
-                    const cumple = estado[item.dataset.requisito];
-                    item.classList.toggle('text-green-700', cumple);
-                    item.classList.toggle('text-red-600', ! cumple && nueva.value !== '');
-                    item.classList.toggle('text-gray-500', ! cumple && nueva.value === '');
-                    item.textContent = (cumple ? '✔ ' : '✘ ') + item.textContent.replace(/^[✔✘] /, '');
-                });
-                return estado;
-            }
-
-            [actual, nueva, confirmacion].forEach(function (campo) {
-                campo.addEventListener('input', pintar);
+            // Política compartida (App\Rules\PoliticaPassword) más «distinta» y «confirmación».
+            const pintar = window.requisitosPassword({
+                lista: document.getElementById('requisitos'),
+                campos: [actual, nueva, confirmacion],
+                estado: () => Object.assign(window.revisarPassword(nueva.value), {
+                    distinta: nueva.value !== '' && nueva.value !== actual.value,
+                    confirmacion: nueva.value !== '' && nueva.value === confirmacion.value,
+                }),
+                escrito: () => nueva.value !== '',
             });
-            pintar();
 
             document.getElementById('form-password').addEventListener('submit', function (evento) {
-                const estado = pintar();
                 const faltaActual = actual.value === '';
-                const faltanRequisitos = Object.values(estado).includes(false);
+                // Al intentar guardar se marcan en rojo los requisitos que faltan.
+                const faltanRequisitos = Object.values(pintar(true)).includes(false);
 
                 document.getElementById('error-actual').classList.toggle('hidden', ! faltaActual);
                 document.getElementById('error-requisitos').classList.toggle('hidden', ! faltanRequisitos);
 
                 if (faltaActual || faltanRequisitos) {
                     evento.preventDefault();
-                    // Con la lista vacía en gris, se marcan en rojo los requisitos al intentar guardar.
-                    document.querySelectorAll('#requisitos li').forEach(function (item) {
-                        if (! estado[item.dataset.requisito]) {
-                            item.classList.remove('text-gray-500');
-                            item.classList.add('text-red-600');
-                        }
-                    });
                 }
             });
-        })();
+        });
     </script>
 </x-app-layout>

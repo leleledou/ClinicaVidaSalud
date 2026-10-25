@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Bitacora;
 use App\Models\Cita;
 use App\Models\ConfiguracionSistema;
-use App\Models\HistoriaClinica;
 use App\Models\Paciente;
 use App\Models\Persona;
 use Illuminate\Database\QueryException;
@@ -100,19 +99,8 @@ class PacienteController extends Controller
                 // CU10 A1: si la persona existe (por ejemplo, es médico), se reutiliza.
                 $persona ??= Persona::create(Arr::only($datos, self::CAMPOS_PERSONA));
 
-                $paciente = Paciente::create([
-                    "persona_id" => $persona->id,
-                    "recepcionista_registra_id" => $recepcionistaId,
-                    "codigo" => $this->siguienteCodigo(),
-                    "estado" => "ACTIVO",
-                ]);
-
-                // CU10 paso 7: historia clínica abierta hoy.
-                HistoriaClinica::create([
-                    "paciente_id" => $paciente->id,
-                    "fecha_apertura" => today()->toDateString(),
-                    "grupo_sanguineo" => "DESCONOCIDO",
-                ]);
+                // CU10 paso 7: paciente con código PAC- e historia clínica abierta hoy (lógica compartida con CU12).
+                $paciente = Paciente::registrar($persona, $recepcionistaId);
 
                 Bitacora::registrar("CREAR_PACIENTE", "pacientes", $request->user()->id, true, "pacientes", $paciente->id, "WEB", null, $this->foto($paciente));
 
@@ -166,9 +154,13 @@ class PacienteController extends Controller
             ->orderByDesc("fichas.hora_inicio")
             ->get();
 
+        // CU13: resumen de sus vínculos activos (contactos de emergencia y responsables legales).
+        $vinculos = $paciente->vinculos()->with(["persona", "recepcionista.persona"])->where("estado", "ACTIVO")->orderBy("id")->get();
+
         return view("pacientes.show", [
             "paciente" => $paciente,
             "citas" => $citas,
+            "vinculos" => $vinculos,
             "edadMayoria" => $this->edadMayoria(),
         ]);
     }
@@ -257,16 +249,6 @@ class PacienteController extends Controller
             ->where("medicos_especialidades.medico_id", $medicoId);
     }
 
-    // CU10 paso 7: código PAC-NNNNNN siguiente. El candado de la transacción evita que dos
-    // registros simultáneos tomen el mismo número.
-    private function siguienteCodigo(): string
-    {
-        DB::select("SELECT pg_advisory_xact_lock(hashtext(?))", ["pacientes.codigo"]);
-        $ultimo = DB::selectOne('SELECT coalesce(max(substring(codigo from 5)::int), 0) AS n FROM pacientes WHERE codigo ~ \'^PAC-[0-9]+$\'')->n;
-
-        return sprintf("PAC-%06d", $ultimo + 1);
-    }
-
     // Datos del paciente para la bitácora (antes y después de un cambio).
     private function foto(Paciente $paciente): array
     {
@@ -339,24 +321,10 @@ class PacienteController extends Controller
         return ["id" => ["required", "integer", "exists:pacientes,id"]];
     }
 
-    // CU10 pasos 4 y 5: reglas de los datos personales.
+    // CU10 pasos 4 y 5: reglas de los datos personales (compartidas en Persona::reglas()).
     private function reglas(): array
     {
-        return [
-            // Si hay número debe haber tipo.
-            "tipo_documento" => ["nullable", "required_with:numero_documento", "in:" . implode(",", array_keys(Persona::TIPOS_DOCUMENTO))],
-            "numero_documento" => ["nullable", "string", "max:30"],
-            "complemento" => ["nullable", "string", "max:10"],
-            "expedido" => ["nullable", "in:" . implode(",", array_keys(Persona::EXPEDIDOS))],
-            "nombres" => ["required", "string", "max:255"],
-            "apellido_paterno" => ["required", "string", "max:255"],
-            "apellido_materno" => ["nullable", "string", "max:255"],
-            "fecha_nacimiento" => ["bail", "required", "date", "before_or_equal:today"],
-            "sexo" => ["required", "in:M,F"],
-            "telefono" => ["required", "string", "regex:/^[0-9+\-\s]{7,20}$/"],
-            "correo" => ["nullable", "email", "max:255"],
-            "direccion" => ["nullable", "string", "max:255"],
-        ];
+        return Persona::reglas();
     }
 
     // Mensajes en español (los mismos que muestra la validación en JavaScript).
@@ -366,26 +334,6 @@ class PacienteController extends Controller
             "id.required" => "No se indicó el paciente.",
             "id.integer" => "El paciente indicado no es válido.",
             "id.exists" => "El paciente indicado no existe.",
-            "tipo_documento.required_with" => "Indique el tipo de documento.",
-            "tipo_documento.in" => "El tipo de documento no es válido.",
-            "numero_documento.max" => "El número de documento no puede superar los 30 caracteres.",
-            "complemento.max" => "El complemento no puede superar los 10 caracteres.",
-            "expedido.in" => "El lugar de expedición no es válido.",
-            "nombres.required" => "El campo Nombres es obligatorio.",
-            "nombres.max" => "Los nombres no pueden superar los 255 caracteres.",
-            "apellido_paterno.required" => "El campo Apellido paterno es obligatorio.",
-            "apellido_paterno.max" => "El apellido paterno no puede superar los 255 caracteres.",
-            "apellido_materno.max" => "El apellido materno no puede superar los 255 caracteres.",
-            "fecha_nacimiento.required" => "El campo Fecha de nacimiento es obligatorio.",
-            "fecha_nacimiento.date" => "La fecha de nacimiento no es válida.",
-            "fecha_nacimiento.before_or_equal" => "La fecha de nacimiento no puede ser futura.",
-            "sexo.required" => "El campo Sexo es obligatorio.",
-            "sexo.in" => "El sexo debe ser M o F.",
-            "telefono.required" => "El campo Teléfono es obligatorio.",
-            "telefono.regex" => "El teléfono solo puede tener dígitos, +, espacios y guiones (entre 7 y 20 caracteres).",
-            "correo.email" => "El correo no tiene un formato válido.",
-            "correo.max" => "El correo no puede superar los 255 caracteres.",
-            "direccion.max" => "La dirección no puede superar los 255 caracteres.",
-        ];
+        ] + Persona::mensajes();
     }
 }

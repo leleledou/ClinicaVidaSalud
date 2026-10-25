@@ -33,11 +33,15 @@ class Usuario extends Authenticatable
         "password"
     ];
 
+    // CU04 paso 6 / CU12 paso 5: formato del nombre de usuario (el mismo en JavaScript).
+    public const FORMATO_NOMBRE_USUARIO = "/^[A-Za-z0-9._-]{3,50}$/";
+
     protected function casts(): array
     {
         return [
             "password" => "hashed",
             "bloqueado_hasta" => "datetime",
+            "correo_verificado_en" => "datetime",
             "ultimo_acceso" => "datetime",
             "debe_cambiar_password" => "boolean",
             "suscripcion_push" => "array"
@@ -58,6 +62,15 @@ class Usuario extends Authenticatable
     public function persona()
     {
         return $this->belongsTo(Persona::class, "persona_id");
+    }
+
+    // CU04 paso 7 / CU12 paso 5: lower(columna) = lower(?), sin contar la cuenta $idIgnorar.
+    // $columna es fija en el código ("nombre_usuario" o "correo").
+    public static function yaUsado(string $columna, string $valor, ?int $idIgnorar = null): bool
+    {
+        return self::whereRaw("lower({$columna}) = lower(?)", [$valor])
+            ->when($idIgnorar, fn ($consulta) => $consulta->where("id", "<>", $idIgnorar))
+            ->exists();
     }
 
     // RN12: el permiso se concede solo si el rol está ACTIVO (CU05 A1: un rol inactivo pierde sus permisos).

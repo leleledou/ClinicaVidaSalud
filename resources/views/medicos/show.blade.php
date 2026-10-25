@@ -64,7 +64,13 @@
 
             {{-- Horarios de atención --}}
             <div class="bg-white shadow-sm sm:rounded-lg p-6 space-y-4">
-                <h3 class="text-lg font-medium text-gray-900">Horarios de atención</h3>
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-medium text-gray-900">Horarios de atención</h3>
+                    {{-- CU09: gestionar los horarios de este médico --}}
+                    @can('horarios.gestionar')
+                        <a href="{{ route('horarios.listar', ['medico_id' => $medico->id]) }}" class="text-sm font-medium text-indigo-600 hover:underline">Gestionar horarios</a>
+                    @endcan
+                </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead>

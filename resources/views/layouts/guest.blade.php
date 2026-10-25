@@ -23,7 +23,7 @@
                 <span class="mt-2 text-2xl font-semibold text-gray-800">Clínica Vida Salud</span>
             </div>
 
-            <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-lg">
+            <div @class(['w-full mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-lg', 'sm:max-w-3xl mb-6' => $ancho, 'sm:max-w-md' => ! $ancho])>
                 {{ $slot }}
             </div>
         </div>

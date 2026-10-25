@@ -25,7 +25,16 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ $paciente->codigo }} · {{ $persona->nombre_completo }}
             </h2>
-            <a href="{{ route('pacientes.listar') }}" class="text-sm text-indigo-600 hover:underline">Volver a la lista</a>
+            <div class="flex items-center gap-4">
+                {{-- CU13: vínculos del paciente (recepción con vinculos.gestionar o vinculos.verificar) --}}
+                @canany(['vinculos.gestionar', 'vinculos.verificar'])
+                    <a href="{{ route('vinculos-paciente.listar', ['paciente_id' => $paciente->id]) }}"
+                       class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50">
+                        Vínculos
+                    </a>
+                @endcanany
+                <a href="{{ route('pacientes.listar') }}" class="text-sm text-indigo-600 hover:underline">Volver a la lista</a>
+            </div>
         </div>
     </x-slot>
 
@@ -80,6 +89,37 @@
                         <a href="{{ route('pacientes.listar', ['q' => $paciente->codigo]) }}" class="text-sm text-indigo-600 hover:underline">Modificar datos (en la lista)</a>
                     </div>
                 @endcan
+            </div>
+
+            {{-- CU13: resumen de los vínculos activos (contactos de emergencia y responsables legales) --}}
+            <div class="bg-white shadow-sm sm:rounded-lg p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-medium text-gray-900">Vínculos activos</h3>
+                    @canany(['vinculos.gestionar', 'vinculos.verificar'])
+                        <a href="{{ route('vinculos-paciente.listar', ['paciente_id' => $paciente->id]) }}" class="text-sm text-indigo-600 hover:underline">Gestionar vínculos</a>
+                    @endcanany
+                </div>
+                @if ($persona->edad < $edadMayoria && ! $vinculos->contains(fn ($v) => $v->es_responsable_legal && $v->fecha_verificacion))
+                    <div class="rounded-md bg-red-50 p-3 text-sm font-medium text-red-800">
+                        Este paciente es menor de edad y no tiene un responsable legal verificado: no podrá recibir citas (RN16).
+                    </div>
+                @endif
+                <ul class="divide-y divide-gray-100 text-sm">
+                    @forelse ($vinculos as $vinculo)
+                        <li class="py-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                            <span class="font-medium">{{ $vinculo->persona->nombre_completo }}</span>
+                            <span class="text-gray-600">{{ $vinculo->parentesco }} · {{ $vinculo->tipoTexto() }}</span>
+                            <span class="text-gray-600">Tel. {{ $vinculo->persona->telefono }}</span>
+                            @if ($vinculo->fecha_verificacion)
+                                <span class="text-green-700">Verificado el {{ $vinculo->fecha_verificacion->format('d/m/Y') }}</span>
+                            @else
+                                <span class="text-yellow-700">Pendiente de verificación</span>
+                            @endif
+                        </li>
+                    @empty
+                        <li class="py-2 text-gray-500">Sin vínculos activos</li>
+                    @endforelse
+                </ul>
             </div>
 
             {{-- CU10 A4: citas del paciente, de la más reciente a la más antigua (incluidas las canceladas) --}}

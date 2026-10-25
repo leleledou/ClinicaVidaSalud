@@ -557,9 +557,9 @@ class UsuarioController extends Controller
         // CU04 pasos 6 y 7: cuenta de acceso con nombre de usuario y correo únicos (sin distinguir mayúsculas).
         return $reglas + [
             "nombre_usuario" => [
-                "bail", "required", "string", "regex:/^[A-Za-z0-9._-]{3,50}$/",
+                "bail", "required", "string", "regex:" . Usuario::FORMATO_NOMBRE_USUARIO,
                 function (string $atributo, mixed $valor, \Closure $fallar) use ($idIgnorar) {
-                    if ($this->existeEnUsuarios("nombre_usuario", $valor, $idIgnorar)) {
+                    if (Usuario::yaUsado("nombre_usuario", $valor, $idIgnorar)) {
                         $fallar("Ese nombre de usuario ya está registrado");
                     }
                 },
@@ -567,20 +567,12 @@ class UsuarioController extends Controller
             "correo_acceso" => [
                 "bail", "required", "email", "max:255",
                 function (string $atributo, mixed $valor, \Closure $fallar) use ($idIgnorar) {
-                    if ($this->existeEnUsuarios("correo", $valor, $idIgnorar)) {
+                    if (Usuario::yaUsado("correo", $valor, $idIgnorar)) {
                         $fallar("Ese correo ya está registrado");
                     }
                 },
             ],
         ];
-    }
-
-    // CU04 paso 7: lower(columna) = lower(?), sin contar la propia cuenta. $columna es fija en el código.
-    private function existeEnUsuarios(string $columna, string $valor, ?int $idIgnorar): bool
-    {
-        return Usuario::whereRaw("lower({$columna}) = lower(?)", [$valor])
-            ->when($idIgnorar, fn ($consulta) => $consulta->where("id", "<>", $idIgnorar))
-            ->exists();
     }
 
     // Mensajes en español.

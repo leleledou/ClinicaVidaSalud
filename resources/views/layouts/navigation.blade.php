@@ -1,7 +1,9 @@
 {{-- Menú principal (RF01: menú según los permisos). Por ahora solo «Panel»;
      las opciones de los próximos bloques se agregan con @can("codigo.permiso"). --}}
 @php
-    $usuarioMenu = Auth::user()->loadMissing(['persona', 'rol']);
+    $usuarioMenu = Auth::user()->loadMissing(['persona.paciente', 'rol']);
+    // CU13 A1: el paciente gestiona sus propios contactos.
+    $verMisContactos = $usuarioMenu->persona->paciente !== null && Gate::allows('perfil.gestionar');
     $nombreMenu = $usuarioMenu->persona->nombres . ' ' . $usuarioMenu->persona->apellido_paterno;
 @endphp
 
@@ -19,7 +21,7 @@
                 </div>
 
                 <!-- Opciones del menú -->
-                <div class="hidden space-x-6 lg:-my-px lg:ms-8 lg:flex">
+                <div class="hidden space-x-5 xl:-my-px xl:ms-8 xl:flex">
                     <x-nav-link :href="route('panel')" :active="request()->routeIs('panel')">
                         Panel
                     </x-nav-link>
@@ -38,6 +40,13 @@
                         </x-nav-link>
                     @endcan
 
+                    {{-- CU09 Gestionar horarios de atención --}}
+                    @can('horarios.gestionar')
+                        <x-nav-link :href="route('horarios.listar')" :active="request()->routeIs('horarios.*')">
+                            Horarios
+                        </x-nav-link>
+                    @endcan
+
                     {{-- CU07 Gestionar médicos --}}
                     @can('medicos.gestionar')
                         <x-nav-link :href="route('medicos.listar')" :active="request()->routeIs('medicos.*')">
@@ -51,6 +60,13 @@
                             Pacientes
                         </x-nav-link>
                     @endcan
+
+                    {{-- CU13 A1: contactos del propio paciente --}}
+                    @if ($verMisContactos)
+                        <x-nav-link :href="route('vinculos-paciente.listar')" :active="request()->routeIs('vinculos-paciente.*')">
+                            Mis contactos
+                        </x-nav-link>
+                    @endif
 
                     {{-- CU04 Gestionar usuarios --}}
                     @can('usuarios.gestionar')
@@ -69,7 +85,7 @@
             </div>
 
             <!-- Menú de la cuenta -->
-            <div class="hidden lg:flex lg:items-center lg:ms-6">
+            <div class="hidden xl:flex xl:items-center xl:ms-6">
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
@@ -110,7 +126,7 @@
             </div>
 
             <!-- Botón del menú móvil -->
-            <div class="-me-2 flex items-center lg:hidden">
+            <div class="-me-2 flex items-center xl:hidden">
                 <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                         <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -122,7 +138,7 @@
     </div>
 
     <!-- Menú móvil -->
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden lg:hidden">
+    <div :class="{'block': open, 'hidden': ! open}" class="hidden xl:hidden">
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="route('panel')" :active="request()->routeIs('panel')">
                 Panel
@@ -140,6 +156,12 @@
                 </x-responsive-nav-link>
             @endcan
 
+            @can('horarios.gestionar')
+                <x-responsive-nav-link :href="route('horarios.listar')" :active="request()->routeIs('horarios.*')">
+                    Horarios
+                </x-responsive-nav-link>
+            @endcan
+
             @can('medicos.gestionar')
                 <x-responsive-nav-link :href="route('medicos.listar')" :active="request()->routeIs('medicos.*')">
                     Médicos
@@ -151,6 +173,12 @@
                     Pacientes
                 </x-responsive-nav-link>
             @endcan
+
+            @if ($verMisContactos)
+                <x-responsive-nav-link :href="route('vinculos-paciente.listar')" :active="request()->routeIs('vinculos-paciente.*')">
+                    Mis contactos
+                </x-responsive-nav-link>
+            @endif
 
             @can('usuarios.gestionar')
                 <x-responsive-nav-link :href="route('usuarios.listar')" :active="request()->routeIs('usuarios.*')">

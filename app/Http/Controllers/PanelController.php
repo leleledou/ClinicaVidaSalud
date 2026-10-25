@@ -14,6 +14,9 @@ class PanelController extends Controller
     {
         $usuario = $request->user()->load(["persona", "rol"]);
 
-        return view("panel", compact("usuario"));
+        // CU12: un paciente con el correo sin verificar no puede reservar citas en línea.
+        $correoPendiente = $usuario->rol->nombre === "PACIENTE" && $usuario->correo_verificado_en === null;
+
+        return view("panel", compact("usuario", "correoPendiente"));
     }
 }
