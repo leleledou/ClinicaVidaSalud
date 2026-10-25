@@ -25,7 +25,7 @@ class ConfiguracionSistemaSeeder extends Seeder
         ['max_inasistencias_autoreserva', '3', 'int', 'Inasistencias que bloquean la reserva en línea (RN19).'],
         ['meses_inasistencias', '6', 'int', 'Ventana en meses para contar las inasistencias (RN19).'],
         ['horas_minimas_cambio_web', '12', 'int', 'Horas mínimas de anticipación para reprogramar o cancelar desde la web.'],
-        ['max_intentos_login', '5', 'int', '[PROPUESTA] Intentos fallidos antes del bloqueo temporal de la cuenta.'],
+        ['max_intentos_login', '3', 'int', '[PROPUESTA] Intentos fallidos antes del bloqueo temporal de la cuenta.'],
         ['minutos_bloqueo_login', '15', 'int', '[PROPUESTA] Duración en minutos del bloqueo temporal por intentos fallidos.'],
         ['minutos_inactividad_sesion', '30', 'int', '[PROPUESTA] Minutos de inactividad tras los cuales se cierra la sesión.'],
         ['semanas_generacion_fichas', '4', 'int', '[PROPUESTA] Semanas por delante para las que se generan las fichas de un horario.'],

@@ -13,4 +13,9 @@ class Consultorio extends Model
         "ubicacion",
         "estado"
     ];
+
+    public function horarios()
+    {
+        return $this->hasMany(HorarioAtencion::class, "consultorio_id");
+    }
 }

@@ -18,4 +18,15 @@ class Especialidad extends Model
         "duracion_sugerida_min",
         "estado"
     ];
+
+    public function medicoEspecialidades()
+    {
+        return $this->hasMany(MedicoEspecialidad::class);
+    }
+
+    public function medicos()
+    {
+        return $this->belongsToMany(Medico::class, "medicos_especialidades", "especialidad_id", "medico_id")
+            ->withPivot("id", "es_principal", "estado");
+    }
 }

@@ -26,4 +26,14 @@ class Cita extends Model
         "justificacion_excepcion",
         "fecha_registro"
     ];
+
+    public function paciente()
+    {
+        return $this->belongsTo(Paciente::class, "paciente_id");
+    }
+
+    public function ficha()
+    {
+        return $this->belongsTo(Ficha::class, "ficha_id");
+    }
 }

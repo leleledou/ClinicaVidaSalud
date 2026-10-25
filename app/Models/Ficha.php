@@ -15,4 +15,9 @@ class Ficha extends Model
         "hora_fin",
         "estado"
     ];
+
+    public function horario()
+    {
+        return $this->belongsTo(HorarioAtencion::class, "horario_atencion_id");
+    }
 }

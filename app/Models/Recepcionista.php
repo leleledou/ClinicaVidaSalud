@@ -15,4 +15,9 @@ class Recepcionista extends Model
         "fecha_ingreso",
         "estado"
     ];
+
+    public function persona()
+    {
+        return $this->belongsTo(Persona::class, "persona_id");
+    }
 }

@@ -15,4 +15,9 @@ class Administrador extends Model
         "cargo",
         "estado"
     ];
+
+    public function persona()
+    {
+        return $this->belongsTo(Persona::class, "persona_id");
+    }
 }

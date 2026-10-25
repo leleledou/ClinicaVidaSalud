@@ -15,4 +15,14 @@ class MedicoEspecialidad extends Model
         "es_principal",
         "estado"
     ];
+
+    public function especialidad()
+    {
+        return $this->belongsTo(Especialidad::class, "especialidad_id");
+    }
+
+    public function medico()
+    {
+        return $this->belongsTo(Medico::class, "medico_id");
+    }
 }

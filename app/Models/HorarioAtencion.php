@@ -21,4 +21,14 @@ class HorarioAtencion extends Model
         "vigente_hasta",
         "estado"
     ];
+
+    public function consultorio()
+    {
+        return $this->belongsTo(Consultorio::class, "consultorio_id");
+    }
+
+    public function medicoEspecialidad()
+    {
+        return $this->belongsTo(MedicoEspecialidad::class, "medico_especialidad_id");
+    }
 }
