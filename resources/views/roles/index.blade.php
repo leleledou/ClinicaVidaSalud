@@ -10,12 +10,10 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Roles y permisos
-        </h2>
+        <x-encabezado ruta="Seguridad / Roles y permisos" titulo="Roles y permisos" />
     </x-slot>
 
-    <div class="py-12"
+    <div class="space-y-6"
          x-data="{
             abierto: {{ Js::from($volvioFormulario) }},
             form: {{ Js::from($formularioInicial) }} ?? { id: null, nombre: '', descripcion: '' },
@@ -26,10 +24,10 @@
                 this.$nextTick(() => this.$refs.formulario.scrollIntoView({ behavior: 'smooth' }));
             },
          }">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="space-y-6">
             {{-- Errores de desactivar/activar (no son del formulario) --}}
             @if ($errors->hasAny(['operacion', 'id']) && ! $volvioFormulario)
-                <div class="rounded-md bg-red-50 p-4 text-sm font-medium text-red-800">
+                <div class="alerta-error font-medium">
                     <ul class="space-y-1">
                         @foreach (array_merge($errors->get('operacion'), $errors->get('id')) as $error)
                             <li>{{ $error }}</li>
@@ -38,44 +36,46 @@
                 </div>
             @endif
 
+            <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             {{-- CU05 paso 2: lista --}}
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900 space-y-4">
-                    <div class="flex justify-end">
+            <div class="tarjeta" :class="abierto ? 'lg:col-span-2' : 'lg:col-span-3'">
+                <div class="space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <h2 class="tarjeta-titulo !mb-0">Roles registrados</h2>
                         {{-- CU05 paso 3 --}}
                         <x-primary-button type="button" @click="nuevo()">Nuevo rol</x-primary-button>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <div class="tabla-contenedor">
+                        <table class="tabla">
                             <thead>
-                                <tr class="text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                    <th class="px-3 py-2">Nombre</th>
-                                    <th class="px-3 py-2">Descripción</th>
-                                    <th class="px-3 py-2">Estado</th>
-                                    <th class="px-3 py-2">Usuarios</th>
-                                    <th class="px-3 py-2">Permisos</th>
-                                    <th class="px-3 py-2">Acciones</th>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Descripción</th>
+                                    <th>Estado</th>
+                                    <th>Usuarios</th>
+                                    <th>Permisos</th>
+                                    <th class="text-right">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100">
+                            <tbody>
                                 @foreach ($roles as $rol)
                                     <tr class="align-top">
-                                        <td class="px-3 py-3">
+                                        <td>
                                             {{-- CU05 paso 4: la ficha muestra y edita sus permisos --}}
-                                            <a href="{{ route('roles.mostrar', $rol->id) }}" class="font-medium text-indigo-600 hover:underline">{{ $rol->nombre }}</a>
+                                            <a href="{{ route('roles.mostrar', $rol->id) }}" class="font-semibold text-marino-900 hover:text-teal-700 hover:underline">{{ $rol->nombre }}</a>
                                             @if ($rol->id === $rolPropio)
-                                                <span class="ms-1 text-xs text-gray-500">(su rol)</span>
+                                                <span class="ms-1 text-xs text-slate-500">(su rol)</span>
                                             @endif
                                         </td>
-                                        <td class="px-3 py-3 text-gray-600">{{ $rol->descripcion ?? '—' }}</td>
-                                        <td class="px-3 py-3"><x-estado :estado="$rol->estado" /></td>
-                                        <td class="px-3 py-3">{{ $rol->usuarios_count }}</td>
-                                        <td class="px-3 py-3">{{ $rol->permisos_count }}</td>
-                                        <td class="px-3 py-3">
-                                            <div class="flex flex-wrap items-center gap-2">
-                                                <a href="{{ route('roles.mostrar', $rol->id) }}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50">Permisos</a>
-                                                <x-secondary-button @click="editar({{ Js::from($rol->only(['id', 'nombre', 'descripcion'])) }})">Modificar</x-secondary-button>
+                                        <td class="text-slate-600">{{ $rol->descripcion ?? '—' }}</td>
+                                        <td><x-estado :estado="$rol->estado" /></td>
+                                        <td>{{ $rol->usuarios_count }}</td>
+                                        <td>{{ $rol->permisos_count }}</td>
+                                        <td>
+                                            <div class="acciones">
+                                                <a href="{{ route('roles.mostrar', $rol->id) }}" class="accion">Permisos</a>
+                                                <button type="button" class="accion" @click="editar({{ Js::from($rol->only(['id', 'nombre', 'descripcion'])) }})">Modificar</button>
 
                                                 {{-- CU05 A1. Protección: su propio rol no se desactiva --}}
                                                 @if ($rol->estado === 'ACTIVO' && $rol->id !== $rolPropio)
@@ -83,13 +83,13 @@
                                                           onsubmit="return confirm({{ Js::from('¿Desactivar el rol '.$rol->nombre.'? Sus '.$rol->usuarios_count.' usuario(s) perderán los permisos del rol.') }});">
                                                         @csrf
                                                         <input type="hidden" name="id" value="{{ $rol->id }}">
-                                                        <x-danger-button>Desactivar</x-danger-button>
+                                                        <button type="submit" class="accion-peligro">Desactivar</button>
                                                     </form>
                                                 @elseif ($rol->estado !== 'ACTIVO')
                                                     <form method="POST" action="{{ route('roles.activar') }}">
                                                         @csrf
                                                         <input type="hidden" name="id" value="{{ $rol->id }}">
-                                                        <x-primary-button>Activar</x-primary-button>
+                                                        <button type="submit" class="accion">Activar</button>
                                                     </form>
                                                 @endif
                                             </div>
@@ -103,11 +103,11 @@
             </div>
 
             {{-- CU05 paso 3: formulario de registro y modificación --}}
-            <div x-ref="formulario" x-show="abierto" x-cloak class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                <section class="max-w-xl">
-                    <header>
-                        <h2 class="text-lg font-medium text-gray-900" x-text="form.id ? 'Modificar rol' : 'Nuevo rol'"></h2>
-                        <p class="mt-1 text-sm text-gray-600">El nombre se guarda en mayúsculas. Los permisos se marcan en la ficha del rol.</p>
+            <div x-ref="formulario" x-show="abierto" x-cloak class="tarjeta lg:col-span-1">
+                <section>
+                    <header class="space-y-3">
+                        <h2 class="tarjeta-titulo !mb-0" x-text="form.id ? 'Modificar rol' : 'Nuevo rol'"></h2>
+                        <p class="alerta-info">El nombre se guarda en mayúsculas. Los permisos se marcan en la ficha del rol.</p>
                     </header>
 
                     {{-- novalidate: la validación la hace validarRol() (resources/js/personas.js), en español --}}
@@ -121,23 +121,24 @@
                         <div>
                             <x-input-label for="nombre" value="Nombre" />
                             <x-text-input id="nombre" name="nombre" type="text" maxlength="255" class="mt-1 block w-full uppercase" x-model="form.nombre" placeholder="Por ejemplo, SUPERVISOR" />
-                            <p class="js-error mt-2 text-sm text-red-600" data-campo="nombre" hidden></p>
+                            <p class="js-error" data-campo="nombre" hidden></p>
                             @if ($volvioFormulario) <x-input-error :messages="$errors->get('nombre')" class="mt-2" /> @endif
                         </div>
 
                         <div>
                             <x-input-label for="descripcion" value="Descripción (opcional)" />
                             <textarea id="descripcion" name="descripcion" rows="3" maxlength="2000" x-model="form.descripcion"
-                                      class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"></textarea>
+                                      class="campo"></textarea>
                             @if ($volvioFormulario) <x-input-error :messages="$errors->get('descripcion')" class="mt-2" /> @endif
                         </div>
 
-                        <div class="flex items-center gap-4">
+                        <div class="flex flex-wrap items-center gap-3">
                             <x-primary-button x-text="form.id ? 'Guardar cambios' : 'Registrar'">Guardar</x-primary-button>
                             <x-secondary-button @click="abierto = false">Cancelar</x-secondary-button>
                         </div>
                     </form>
                 </section>
+            </div>
             </div>
         </div>
     </div>

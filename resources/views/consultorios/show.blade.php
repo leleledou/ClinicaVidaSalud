@@ -6,69 +6,67 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Consultorio: {{ $consultorio->nombre }}
-            </h2>
-            <a href="{{ route('consultorios.listar') }}" class="text-sm text-indigo-600 hover:underline">Volver a la lista</a>
-        </div>
+        <x-encabezado ruta="Catálogos / Consultorios" :titulo="'Consultorio: ' . $consultorio->nombre">
+            <a href="{{ route('consultorios.listar') }}" class="font-semibold text-teal-700 hover:underline">Volver a la lista</a>
+        </x-encabezado>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+    <div class="space-y-6">
+        <div class="space-y-6">
             {{-- Datos del consultorio --}}
-            <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                <dl class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
-                    <div>
-                        <dt class="font-medium text-gray-500">Nombre</dt>
-                        <dd class="mt-1 text-gray-900">{{ $consultorio->nombre }}</dd>
+            <div class="tarjeta">
+                <h2 class="tarjeta-titulo">Datos del consultorio</h2>
+                <dl class="grid grid-cols-1 gap-x-10 xl:grid-cols-2">
+                    <div class="dato">
+                        <dt>Nombre</dt>
+                        <dd>{{ $consultorio->nombre }}</dd>
                     </div>
-                    <div>
-                        <dt class="font-medium text-gray-500">Ubicación</dt>
-                        <dd class="mt-1 text-gray-900">{{ $consultorio->ubicacion }}</dd>
+                    <div class="dato">
+                        <dt>Ubicación</dt>
+                        <dd>{{ $consultorio->ubicacion }}</dd>
                     </div>
-                    <div>
-                        <dt class="font-medium text-gray-500">Estado</dt>
-                        <dd class="mt-1"><x-estado :estado="$consultorio->estado" /></dd>
+                    <div class="dato">
+                        <dt>Estado</dt>
+                        <dd><x-estado :estado="$consultorio->estado" /></dd>
                     </div>
                 </dl>
             </div>
 
             {{-- Horarios del consultorio --}}
-            <div class="bg-white shadow-sm sm:rounded-lg p-6 space-y-4">
-                <h3 class="text-lg font-medium text-gray-900">Horarios de atención</h3>
+            <div class="tarjeta space-y-4">
+                <h2 class="tarjeta-titulo">Horarios de atención</h2>
 
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <div class="tabla-contenedor">
+                    <table class="tabla">
                         <thead>
-                            <tr class="text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                <th class="px-3 py-2">Médico</th>
-                                <th class="px-3 py-2">Especialidad</th>
-                                <th class="px-3 py-2">Día</th>
-                                <th class="px-3 py-2">Horario</th>
-                                <th class="px-3 py-2">Vigencia</th>
-                                <th class="px-3 py-2">Estado</th>
+                            <tr>
+                                <th>Médico</th>
+                                <th>Especialidad</th>
+                                <th>Día</th>
+                                <th>Horario</th>
+                                <th>Vigencia</th>
+                                <th>Estado</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100">
+                        <tbody>
                             @forelse ($horarios as $horario)
                                 <tr>
-                                    <td class="px-3 py-3">
-                                        <span class="text-gray-500">{{ $horario->medico_codigo }}</span>
+                                    <td>
+                                        <span class="text-slate-500">{{ $horario->medico_codigo }}</span>
                                         {{ $horario->nombres }} {{ $horario->apellido_paterno }} {{ $horario->apellido_materno }}
                                     </td>
-                                    <td class="px-3 py-3">{{ $horario->especialidad }}</td>
-                                    <td class="px-3 py-3">{{ $dias[$horario->dia_semana] ?? $horario->dia_semana }}</td>
-                                    <td class="px-3 py-3 whitespace-nowrap">{{ substr($horario->hora_inicio, 0, 5) }} – {{ substr($horario->hora_fin, 0, 5) }}</td>
-                                    <td class="px-3 py-3 whitespace-nowrap">
+                                    <td>{{ $horario->especialidad }}</td>
+                                    <td>{{ $dias[$horario->dia_semana] ?? $horario->dia_semana }}</td>
+                                    <td class="whitespace-nowrap">{{ substr($horario->hora_inicio, 0, 5) }} – {{ substr($horario->hora_fin, 0, 5) }}</td>
+                                    <td class="whitespace-nowrap">
                                         Desde {{ $fecha($horario->vigente_desde) }}
                                         {{ $horario->vigente_hasta ? 'hasta ' . $fecha($horario->vigente_hasta) : '(sin fecha de fin)' }}
                                     </td>
-                                    <td class="px-3 py-3"><x-estado :estado="$horario->estado" /></td>
+                                    <td><x-estado :estado="$horario->estado" /></td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="px-3 py-6 text-center text-gray-500">El consultorio no tiene horarios asignados.</td>
+                                    <td colspan="6" class="py-8 text-center text-slate-500">El consultorio no tiene horarios asignados.</td>
                                 </tr>
                             @endforelse
                         </tbody>

@@ -30,12 +30,10 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Gestionar especialidades
-        </h2>
+        <x-encabezado ruta="Catálogos / Especialidades" titulo="Gestionar especialidades" />
     </x-slot>
 
-    <div class="py-12"
+    <div class="space-y-6"
          x-data="{
             abierto: {{ Js::from($volvioFormulario) }},
             vacio: { id: null, nombre: '', descripcion: '', edad_minima: '', edad_maxima: '', sexo_permitido: '', duracion_sugerida_min: '' },
@@ -53,10 +51,10 @@
                 this.$nextTick(() => this.$refs.formulario.scrollIntoView({ behavior: 'smooth' }));
             },
          }">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="space-y-6">
             {{-- Errores de desactivar/activar (no son del formulario) --}}
             @if ($errors->hasAny(['operacion', 'id']) && ! $volvioFormulario)
-                <div class="rounded-md bg-red-50 p-4 text-sm font-medium text-red-800">
+                <div class="alerta-error font-medium">
                     <ul class="space-y-1">
                         @foreach (array_merge($errors->get('operacion'), $errors->get('id')) as $error)
                             <li>{{ $error }}</li>
@@ -65,50 +63,52 @@
                 </div>
             @endif
 
+            <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             {{-- CU06 pasos 1-2: lista --}}
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900 space-y-4">
-                    <div class="flex justify-end">
+            <div class="tarjeta" :class="abierto ? 'lg:col-span-2' : 'lg:col-span-3'">
+                <div class="space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <h2 class="tarjeta-titulo !mb-0">Especialidades registradas</h2>
                         {{-- CU06 paso 3 --}}
                         <x-primary-button type="button" @click="nuevo()">Nueva especialidad</x-primary-button>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <div class="tabla-contenedor">
+                        <table class="tabla">
                             <thead>
-                                <tr class="text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                    <th class="px-3 py-2">Nombre</th>
-                                    <th class="px-3 py-2">Descripción</th>
-                                    <th class="px-3 py-2">Edad</th>
-                                    <th class="px-3 py-2">Sexo</th>
-                                    <th class="px-3 py-2">Duración</th>
-                                    <th class="px-3 py-2">Estado</th>
-                                    <th class="px-3 py-2">Médicos</th>
-                                    <th class="px-3 py-2">Acciones</th>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Descripción</th>
+                                    <th>Edad</th>
+                                    <th>Sexo</th>
+                                    <th>Duración</th>
+                                    <th>Estado</th>
+                                    <th>Médicos</th>
+                                    <th class="text-right">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100">
+                            <tbody>
                                 @forelse ($especialidades as $especialidad)
                                     <tr class="align-top">
-                                        <td class="px-3 py-3">
-                                            <a href="{{ route('especialidades.mostrar', $especialidad->id) }}" class="font-medium text-indigo-600 hover:underline">
+                                        <td>
+                                            <a href="{{ route('especialidades.mostrar', $especialidad->id) }}" class="font-semibold text-marino-900 hover:text-teal-700 hover:underline">
                                                 {{ $especialidad->nombre }}
                                             </a>
                                         </td>
-                                        <td class="px-3 py-3 text-gray-600">{{ $especialidad->descripcion ?? '—' }}</td>
-                                        <td class="px-3 py-3 whitespace-nowrap">{{ $textoEdad($especialidad) }}</td>
-                                        <td class="px-3 py-3 whitespace-nowrap">{{ $textoSexo($especialidad->sexo_permitido) }}</td>
-                                        <td class="px-3 py-3 whitespace-nowrap">{{ $especialidad->duracion_sugerida_min }} min</td>
-                                        <td class="px-3 py-3">
+                                        <td class="text-slate-600">{{ $especialidad->descripcion ?? '—' }}</td>
+                                        <td class="whitespace-nowrap">{{ $textoEdad($especialidad) }}</td>
+                                        <td class="whitespace-nowrap">{{ $textoSexo($especialidad->sexo_permitido) }}</td>
+                                        <td class="whitespace-nowrap">{{ $especialidad->duracion_sugerida_min }} min</td>
+                                        <td>
                                             <x-estado :estado="$especialidad->estado" />
                                         </td>
-                                        <td class="px-3 py-3">{{ $especialidad->medicos_count }}</td>
-                                        <td class="px-3 py-3">
-                                            <div class="flex flex-wrap items-center gap-2">
+                                        <td>{{ $especialidad->medicos_count }}</td>
+                                        <td>
+                                            <div class="acciones">
                                                 {{-- CU06 A1 --}}
-                                                <x-secondary-button @click="editar({{ Js::from($especialidad->only(['id', 'nombre', 'descripcion', 'edad_minima', 'edad_maxima', 'sexo_permitido', 'duracion_sugerida_min'])) }})">
+                                                <button type="button" class="accion" @click="editar({{ Js::from($especialidad->only(['id', 'nombre', 'descripcion', 'edad_minima', 'edad_maxima', 'sexo_permitido', 'duracion_sugerida_min'])) }})">
                                                     Modificar
-                                                </x-secondary-button>
+                                                </button>
 
                                                 @if ($especialidad->estado === 'ACTIVO')
                                                     {{-- CU06 A2: desactivar con confirmación; el id viaja oculto --}}
@@ -116,13 +116,13 @@
                                                           onsubmit="return confirm({{ Js::from('¿Desactivar la especialidad '.$especialidad->nombre.'?') }});">
                                                         @csrf
                                                         <input type="hidden" name="id" value="{{ $especialidad->id }}">
-                                                        <x-danger-button>Desactivar</x-danger-button>
+                                                        <button type="submit" class="accion-peligro">Desactivar</button>
                                                     </form>
                                                 @else
                                                     <form method="POST" action="{{ route('especialidades.activar') }}">
                                                         @csrf
                                                         <input type="hidden" name="id" value="{{ $especialidad->id }}">
-                                                        <x-primary-button>Activar</x-primary-button>
+                                                        <button type="submit" class="accion">Activar</button>
                                                     </form>
                                                 @endif
                                             </div>
@@ -130,7 +130,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="8" class="px-3 py-6 text-center text-gray-500">No hay especialidades registradas.</td>
+                                        <td colspan="8" class="py-8 text-center text-slate-500">No hay especialidades registradas.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -140,10 +140,10 @@
             </div>
 
             {{-- CU06 paso 4 / A1: formulario de registro y modificación --}}
-            <div x-ref="formulario" x-show="abierto" x-cloak class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                <section class="max-w-xl">
+            <div x-ref="formulario" x-show="abierto" x-cloak class="tarjeta lg:col-span-1">
+                <section>
                     <header>
-                        <h2 class="text-lg font-medium text-gray-900" x-text="form.id ? 'Modificar especialidad' : 'Nueva especialidad'"></h2>
+                        <h2 class="tarjeta-titulo !mb-0" x-text="form.id ? 'Modificar especialidad' : 'Nueva especialidad'"></h2>
                     </header>
 
                     {{-- novalidate: la validación del navegador la hace validarEspecialidad() (más abajo), en español --}}
@@ -158,14 +158,14 @@
                         <div>
                             <x-input-label for="nombre" value="Nombre" />
                             <x-text-input id="nombre" name="nombre" type="text" class="mt-1 block w-full" x-model="form.nombre" maxlength="255" />
-                            <p class="js-error mt-2 text-sm text-red-600" data-campo="nombre" hidden></p>
+                            <p class="js-error" data-campo="nombre" hidden></p>
                             @if ($volvioFormulario) <x-input-error :messages="$errors->get('nombre')" class="mt-2" /> @endif
                         </div>
 
                         <div>
                             <x-input-label for="descripcion" value="Descripción (opcional)" />
                             <textarea id="descripcion" name="descripcion" rows="3" x-model="form.descripcion" maxlength="2000"
-                                      class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"></textarea>
+                                      class="campo"></textarea>
                             @if ($volvioFormulario) <x-input-error :messages="$errors->get('descripcion')" class="mt-2" /> @endif
                         </div>
 
@@ -173,13 +173,13 @@
                             <div>
                                 <x-input-label for="edad_minima" value="Edad mínima (opcional)" />
                                 <x-text-input id="edad_minima" name="edad_minima" type="number" min="0" max="120" step="1" class="mt-1 block w-full" x-model="form.edad_minima" />
-                                <p class="js-error mt-2 text-sm text-red-600" data-campo="edad_minima" hidden></p>
+                                <p class="js-error" data-campo="edad_minima" hidden></p>
                                 @if ($volvioFormulario) <x-input-error :messages="$errors->get('edad_minima')" class="mt-2" /> @endif
                             </div>
                             <div>
                                 <x-input-label for="edad_maxima" value="Edad máxima (opcional)" />
                                 <x-text-input id="edad_maxima" name="edad_maxima" type="number" min="0" max="120" step="1" class="mt-1 block w-full" x-model="form.edad_maxima" />
-                                <p class="js-error mt-2 text-sm text-red-600" data-campo="edad_maxima" hidden></p>
+                                <p class="js-error" data-campo="edad_maxima" hidden></p>
                                 @if ($volvioFormulario) <x-input-error :messages="$errors->get('edad_maxima')" class="mt-2" /> @endif
                             </div>
                         </div>
@@ -187,7 +187,7 @@
                         <div>
                             <x-input-label for="sexo_permitido" value="Sexo permitido" />
                             <select id="sexo_permitido" name="sexo_permitido" x-model="form.sexo_permitido"
-                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    class="campo">
                                 <option value="">Ambos</option>
                                 <option value="F">Solo mujeres (F)</option>
                                 <option value="M">Solo hombres (M)</option>
@@ -198,21 +198,22 @@
                         <div>
                             <x-input-label for="duracion_sugerida_min" value="Duración sugerida (minutos)" />
                             <x-text-input id="duracion_sugerida_min" name="duracion_sugerida_min" type="number" min="10" max="120" step="1" class="mt-1 block w-full" x-model="form.duracion_sugerida_min" />
-                            <p class="js-error mt-2 text-sm text-red-600" data-campo="duracion_sugerida_min" hidden></p>
+                            <p class="js-error" data-campo="duracion_sugerida_min" hidden></p>
                             @if ($volvioFormulario) <x-input-error :messages="$errors->get('duracion_sugerida_min')" class="mt-2" /> @endif
                         </div>
 
                         {{-- CU06 A1: nota al modificar --}}
-                        <p x-show="form.id" class="text-sm text-gray-600">
+                        <p x-show="form.id" class="alerta-info">
                             Los cambios de edad o sexo se aplican a las citas nuevas, no a las ya registradas
                         </p>
 
-                        <div class="flex items-center gap-4">
+                        <div class="flex flex-wrap items-center gap-3">
                             <x-primary-button x-text="form.id ? 'Guardar cambios' : 'Registrar'">Guardar</x-primary-button>
                             <x-secondary-button @click="abierto = false">Cancelar</x-secondary-button>
                         </div>
                     </form>
                 </section>
+            </div>
             </div>
         </div>
     </div>

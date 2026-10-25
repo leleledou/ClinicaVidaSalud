@@ -44,19 +44,10 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ $modo === 'paciente' ? 'Mis contactos' : 'Vínculos del paciente' }}
-            </h2>
-            @if ($modo === 'recepcion' && Gate::allows('pacientes.buscar'))
-                <a href="{{ route('pacientes.mostrar', $paciente->id) }}" class="text-sm text-indigo-600 hover:underline">Volver a la ficha</a>
-            @else
-                <a href="{{ route('panel') }}" class="text-sm text-indigo-600 hover:underline">Volver al panel</a>
-            @endif
-        </div>
+        <x-encabezado ruta="Pacientes / Vínculos" :titulo="$modo === 'paciente' ? 'Mis contactos' : 'Vínculos del paciente'" />
     </x-slot>
 
-    <div class="py-12"
+    <div class="space-y-6"
          x-data="formularioPersona({
             vacio: {{ Js::from($vacio) }},
             inicial: {{ Js::from($inicial) }},
@@ -67,9 +58,9 @@
             urlFichaPaciente: {{ Js::from(route('pacientes.mostrar', '__ID__')) }},
             pacienteId: {{ $paciente->id }},
          })">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="space-y-6">
             @if ($errors->hasAny(['operacion', 'id', 'paciente_id']) && ! $volvioFormulario)
-                <div class="rounded-md bg-red-50 p-4 text-sm font-medium text-red-800">
+                <div class="alerta-error font-medium">
                     <ul class="space-y-1">
                         @foreach (array_merge($errors->get('operacion'), $errors->get('id'), $errors->get('paciente_id')) as $error)
                             <li>{{ $error }}</li>
@@ -80,77 +71,86 @@
 
             {{-- CU13 paso 2 / RN16: aviso del menor sin responsable legal verificado --}}
             @if ($sinResponsable)
-                <div class="rounded-md bg-red-50 p-4 text-sm font-medium text-red-800">
+                <div class="alerta-error font-medium">
                     Este paciente es menor de edad y no tiene un responsable legal verificado: no podrá recibir citas (RN16).
                 </div>
             @endif
 
             {{-- CU13 paso 1: datos del paciente --}}
-            <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                <dl class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
-                    <div><dt class="font-medium text-gray-500">Código</dt><dd class="mt-1">{{ $paciente->codigo }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Paciente</dt><dd class="mt-1 font-medium">{{ $persona->nombre_completo }}</dd></div>
+            <div class="tarjeta">
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <h2 class="tarjeta-titulo !mb-0">Paciente</h2>
+                    @if ($modo === 'recepcion' && Gate::allows('pacientes.buscar'))
+                        <a href="{{ route('pacientes.mostrar', $paciente->id) }}" class="btn-secundario">Volver a la ficha</a>
+                    @else
+                        <a href="{{ route('panel') }}" class="btn-secundario">Volver al panel</a>
+                    @endif
+                </div>
+                <dl class="grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-3">
+                    <div><dt class="text-slate-500">Código</dt><dd class="mt-1 font-medium text-marino-900">{{ $paciente->codigo }}</dd></div>
+                    <div><dt class="text-slate-500">Paciente</dt><dd class="mt-1 font-semibold text-marino-900">{{ $persona->nombre_completo }}</dd></div>
                     <div>
-                        <dt class="font-medium text-gray-500">Edad</dt>
-                        <dd class="mt-1">
+                        <dt class="text-slate-500">Edad</dt>
+                        <dd class="mt-1 font-medium text-marino-900">
                             {{ $persona->edad }} años
                             @if ($esMenor)
-                                <span class="ms-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-800">Menor de edad</span>
+                                <span class="insignia insignia-inasistencia ms-1">Menor de edad</span>
                             @endif
                         </dd>
                     </div>
                 </dl>
             </div>
 
+            <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             {{-- CU13 paso 2: lista de vínculos --}}
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900 space-y-4">
-                    <div class="flex flex-wrap items-center justify-between gap-4">
-                        <h3 class="text-lg font-medium text-gray-900">Contactos de emergencia y responsables legales</h3>
+            <div class="tarjeta" :class="abierto ? 'lg:col-span-2' : 'lg:col-span-3'">
+                <div class="space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <h2 class="tarjeta-titulo !mb-0">Contactos de emergencia y responsables legales</h2>
                         @if ($puedeRegistrar)
                             <x-primary-button type="button" @click="nuevo()">Registrar vínculo</x-primary-button>
                         @endif
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <div class="tabla-contenedor">
+                        <table class="tabla">
                             <thead>
-                                <tr class="text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                    <th class="px-3 py-2">Nombre</th>
-                                    <th class="px-3 py-2">Documento</th>
-                                    <th class="px-3 py-2">Teléfono</th>
-                                    <th class="px-3 py-2">Parentesco</th>
-                                    <th class="px-3 py-2">Tipo</th>
-                                    <th class="px-3 py-2">Verificación</th>
-                                    <th class="px-3 py-2">Estado</th>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Documento</th>
+                                    <th>Teléfono</th>
+                                    <th>Parentesco</th>
+                                    <th>Tipo</th>
+                                    <th>Verificación</th>
+                                    <th>Estado</th>
                                     @if ($puedeGestionar || $puedeVerificar)
-                                        <th class="px-3 py-2">Acciones</th>
+                                        <th class="text-right">Acciones</th>
                                     @endif
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100">
+                            <tbody>
                                 @forelse ($vinculos as $vinculo)
                                     <tr class="align-top">
-                                        <td class="px-3 py-3 font-medium">{{ $vinculo->persona->nombre_completo }}</td>
-                                        <td class="px-3 py-3 whitespace-nowrap">{{ $documento($vinculo->persona) }}</td>
-                                        <td class="px-3 py-3 whitespace-nowrap">{{ $vinculo->persona->telefono }}</td>
-                                        <td class="px-3 py-3">{{ $vinculo->parentesco }}</td>
-                                        <td class="px-3 py-3">{{ $vinculo->tipoTexto() }}</td>
-                                        <td class="px-3 py-3">
+                                        <td class="font-semibold text-marino-900">{{ $vinculo->persona->nombre_completo }}</td>
+                                        <td class="whitespace-nowrap">{{ $documento($vinculo->persona) }}</td>
+                                        <td class="whitespace-nowrap">{{ $vinculo->persona->telefono }}</td>
+                                        <td>{{ $vinculo->parentesco }}</td>
+                                        <td>{{ $vinculo->tipoTexto() }}</td>
+                                        <td>
                                             @if ($vinculo->fecha_verificacion)
                                                 <span class="text-green-700">Verificado por {{ $vinculo->recepcionista?->persona->nombre_completo }} el {{ $vinculo->fecha_verificacion->format('d/m/Y') }}</span>
                                             @else
-                                                <span class="text-yellow-700">Pendiente de verificación</span>
+                                                <span class="text-amber-700">Pendiente de verificación</span>
                                             @endif
                                         </td>
-                                        <td class="px-3 py-3"><x-estado :estado="$vinculo->estado" /></td>
+                                        <td><x-estado :estado="$vinculo->estado" /></td>
                                         @if ($puedeGestionar || $puedeVerificar)
-                                            <td class="px-3 py-3">
+                                            <td>
                                                 @if ($vinculo->estado === 'ACTIVO')
-                                                    <div class="flex flex-wrap items-center gap-2">
+                                                    <div class="acciones">
                                                         {{-- CU13 Modificar: parentesco y tipos --}}
                                                         @if ($puedeGestionar)
-                                                            <x-secondary-button @click="editar({{ Js::from($datosEditar($vinculo)) }})">Modificar</x-secondary-button>
+                                                            <button type="button" class="accion" @click="editar({{ Js::from($datosEditar($vinculo)) }})">Modificar</button>
                                                         @endif
 
                                                         {{-- CU13 Verificar: el id viaja oculto --}}
@@ -159,7 +159,7 @@
                                                                   onsubmit="return confirm({{ Js::from('¿Confirma que revisó el documento físico de '.$vinculo->persona->nombre_completo.'?') }});">
                                                                 @csrf
                                                                 <input type="hidden" name="id" value="{{ $vinculo->id }}">
-                                                                <x-primary-button>Verificar</x-primary-button>
+                                                                <button type="submit" class="accion">Verificar</button>
                                                             </form>
                                                         @endif
 
@@ -169,7 +169,7 @@
                                                                   onsubmit="return confirm({{ Js::from($textoDesactivar($vinculo)) }});">
                                                                 @csrf
                                                                 <input type="hidden" name="id" value="{{ $vinculo->id }}">
-                                                                <x-danger-button>Desactivar</x-danger-button>
+                                                                <button type="submit" class="accion-peligro">Desactivar</button>
                                                             </form>
                                                         @endif
                                                     </div>
@@ -179,7 +179,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="8" class="px-3 py-6 text-center text-gray-500">
+                                        <td colspan="8" class="py-8 text-center text-slate-500">
                                             <p>El paciente aún no tiene vínculos registrados</p>
                                             @if ($puedeRegistrar)
                                                 <x-primary-button type="button" class="mt-3" @click="nuevo()">Registrar vínculo</x-primary-button>
@@ -195,14 +195,14 @@
 
             {{-- CU13 pasos 3 a 7 / Modificar: formulario de registro y modificación --}}
             @if ($puedeRegistrar)
-                <div x-ref="formulario" x-show="abierto" x-cloak class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                    <section class="max-w-4xl space-y-6">
-                        <header>
-                            <h2 class="text-lg font-medium text-gray-900" x-text="form.id ? 'Modificar vínculo' : 'Registrar vínculo'"></h2>
-                            <p class="mt-1 text-sm text-gray-600" x-show="! form.id">Escriba el documento y pulse «Buscar»: si la persona ya está registrada, se reutilizan sus datos.</p>
-                            <p class="mt-1 text-sm text-gray-600" x-show="form.id">Persona vinculada: <span class="font-medium" x-text="form.persona_nombre"></span> (la persona no se cambia).</p>
+                <div x-ref="formulario" x-show="abierto" x-cloak class="tarjeta lg:col-span-1">
+                    <section class="space-y-6">
+                        <header class="space-y-3">
+                            <h2 class="tarjeta-titulo !mb-0" x-text="form.id ? 'Modificar vínculo' : 'Registrar vínculo'"></h2>
+                            <p class="alerta-info" x-show="! form.id">Escriba el documento y pulse «Buscar»: si la persona ya está registrada, se reutilizan sus datos.</p>
+                            <p class="text-sm text-slate-600" x-show="form.id">Persona vinculada: <span class="font-semibold text-marino-900" x-text="form.persona_nombre"></span> (la persona no se cambia).</p>
                             @if ($modo === 'paciente')
-                                <p class="mt-1 text-sm text-gray-600">El vínculo quedará pendiente hasta que recepción revise el documento de la persona.</p>
+                                <p class="alerta-aviso">El vínculo quedará pendiente hasta que recepción revise el documento de la persona.</p>
                             @endif
                         </header>
 
@@ -223,34 +223,34 @@
 
                             {{-- CU13 paso 4: parentesco y tipos --}}
                             <fieldset class="space-y-4">
-                                <legend class="text-sm font-semibold text-gray-700">Vínculo</legend>
+                                <legend class="text-base font-semibold text-marino-900">Vínculo</legend>
 
-                                <div class="max-w-xs">
+                                <div>
                                     <x-input-label for="parentesco" value="Parentesco" />
                                     <select id="parentesco" name="parentesco" x-model="form.parentesco"
-                                            class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                            class="campo">
                                         <option value="">Seleccione…</option>
                                         @foreach ($parentescos as $parentesco)
                                             <option value="{{ $parentesco }}">{{ $parentesco }}</option>
                                         @endforeach
                                     </select>
-                                    <p class="js-error mt-2 text-sm text-red-600" data-campo="parentesco" hidden></p>
+                                    <p class="js-error" data-campo="parentesco" hidden></p>
                                     @if ($volvioFormulario) <x-input-error :messages="$errors->get('parentesco')" class="mt-2" /> @endif
                                 </div>
 
                                 <div class="space-y-2">
-                                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <label class="flex items-center gap-2 text-sm text-slate-700">
                                         <input type="checkbox" name="es_contacto_emergencia" value="1" x-model="form.es_contacto_emergencia"
-                                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                                               class="casilla">
                                         Contacto de emergencia
                                     </label>
-                                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <label class="flex items-center gap-2 text-sm text-slate-700">
                                         <input type="checkbox" name="es_responsable_legal" value="1" x-model="form.es_responsable_legal"
-                                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                                               class="casilla">
                                         Responsable legal (mayor de edad y con documento de identidad)
                                     </label>
-                                    <p class="js-error text-sm text-red-600" data-campo="tipos" hidden></p>
-                                    <p class="js-error text-sm text-red-600" data-campo="es_responsable_legal" hidden></p>
+                                    <p class="js-error" data-campo="tipos" hidden></p>
+                                    <p class="js-error" data-campo="es_responsable_legal" hidden></p>
                                     @if ($volvioFormulario)
                                         <x-input-error :messages="array_merge($errors->get('tipos'), $errors->get('es_responsable_legal'), $errors->get('es_contacto_emergencia'))" />
                                     @endif
@@ -258,10 +258,10 @@
 
                                 {{-- CU13 paso 5: solo para quien tiene vinculos.verificar y perfil de recepcionista ACTIVO --}}
                                 @if ($puedeVerificar)
-                                    <div x-show="! form.id" class="rounded-md bg-gray-50 p-3">
-                                        <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                    <div x-show="! form.id" class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                        <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
                                             <input type="checkbox" name="verificado" value="1" x-model="form.verificado" :disabled="form.id"
-                                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                                                   class="casilla">
                                             Verificado: revisé el documento físico
                                         </label>
                                         @if ($volvioFormulario) <x-input-error :messages="$errors->get('verificado')" class="mt-2" /> @endif
@@ -269,7 +269,7 @@
                                 @endif
                             </fieldset>
 
-                            <div class="flex items-center gap-4">
+                            <div class="flex flex-wrap items-center gap-3">
                                 <x-primary-button x-text="form.id ? 'Guardar cambios' : 'Registrar'">Guardar</x-primary-button>
                                 <x-secondary-button @click="abierto = false">Cancelar</x-secondary-button>
                             </div>
@@ -277,6 +277,7 @@
                     </section>
                 </div>
             @endif
+            </div>
         </div>
     </div>
 </x-app-layout>

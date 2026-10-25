@@ -17,12 +17,10 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Horarios de atención
-        </h2>
+        <x-encabezado ruta="Catálogos / Horarios" titulo="Horarios de atención" />
     </x-slot>
 
-    <div class="py-12"
+    <div class="space-y-6"
          x-data="{
             abierto: {{ Js::from($volvioFormulario) }},
             form: {{ Js::from($inicial) }},
@@ -39,14 +37,15 @@
                 this.$nextTick(() => this.$refs.formulario.scrollIntoView({ behavior: 'smooth' }));
             },
          }">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="space-y-6">
             {{-- CU09 paso 1: elegir el médico (solo ACTIVOS) --}}
-            <div class="bg-white shadow-sm sm:rounded-lg p-6">
+            <div class="tarjeta">
+                <h2 class="tarjeta-titulo">Filtros</h2>
                 <form method="GET" action="{{ route('horarios.listar') }}" class="flex flex-wrap items-end gap-3">
-                    <div>
+                    <div class="w-full sm:w-96">
                         <x-input-label for="medico_id" value="Médico" />
                         <select id="medico_id" name="medico_id" onchange="this.form.submit()"
-                                class="mt-1 block w-96 max-w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                class="campo">
                             <option value="">Seleccione un médico…</option>
                             @foreach ($medicos as $opcion)
                                 <option value="{{ $opcion->id }}" @selected($medico?->id === $opcion->id)>{{ $opcion->codigo }} · {{ $opcion->persona->nombre_completo }}</option>
@@ -55,13 +54,13 @@
                     </div>
                     <noscript><x-primary-button>Ver</x-primary-button></noscript>
                     @if ($medico)
-                        <a href="{{ route('medicos.mostrar', $medico->id) }}" class="text-sm text-indigo-600 hover:underline">Ver ficha del médico</a>
+                        <a href="{{ route('medicos.mostrar', $medico->id) }}" class="btn-secundario">Ver ficha del médico</a>
                     @endif
                 </form>
             </div>
 
             @if ($errors->hasAny(['operacion', 'id', 'fecha_cierre']) && ! $volvioFormulario)
-                <div class="rounded-md bg-red-50 p-4 text-sm font-medium text-red-800">
+                <div class="alerta-error font-medium">
                     <ul class="space-y-1">
                         @foreach (array_merge($errors->get('operacion'), $errors->get('id'), $errors->get('fecha_cierre')) as $error)
                             <li>{{ $error }}</li>
@@ -71,39 +70,40 @@
             @endif
 
             @if ($medico)
+                <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 {{-- CU09 paso 2: grilla semanal de horarios vigentes --}}
-                <div class="bg-white shadow-sm sm:rounded-lg p-6 space-y-4">
+                <div class="tarjeta space-y-4" :class="abierto ? 'lg:col-span-2' : 'lg:col-span-3'">
                     <div class="flex flex-wrap items-center justify-between gap-3">
-                        <h3 class="text-lg font-medium text-gray-900">Horarios vigentes de {{ $medico->persona->nombre_completo }}</h3>
+                        <h2 class="tarjeta-titulo !mb-0">Horarios vigentes de {{ $medico->persona->nombre_completo }}</h2>
                         {{-- CU09 paso 3 --}}
                         <x-primary-button type="button" @click="nuevo()">Nuevo horario</x-primary-button>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-7 gap-3">
+                    <div class="grid grid-cols-1 gap-3" :class="abierto ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7'">
                         @foreach ($dias as $numero => $nombreDia)
-                            <div class="rounded-md border border-gray-200 bg-gray-50 p-2 space-y-2 min-h-24">
-                                <p class="text-center text-xs font-semibold uppercase tracking-wider text-gray-600">{{ $nombreDia }}</p>
+                            <div class="min-h-24 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
+                                <p class="text-center text-xs font-semibold uppercase tracking-wide text-slate-600">{{ $nombreDia }}</p>
                                 @foreach ($vigentes->get($numero, collect()) as $horario)
-                                    <div class="rounded-md bg-white p-2 text-xs shadow-sm space-y-1">
-                                        <a href="{{ route('horarios.mostrar', $horario->id) }}" class="block font-semibold text-indigo-700 hover:underline">
+                                    <div class="space-y-1 rounded-lg border border-slate-200 bg-white p-2 text-xs shadow-sm">
+                                        <a href="{{ route('horarios.mostrar', $horario->id) }}" class="block font-semibold text-teal-700 hover:underline">
                                             {{ $hora($horario->hora_inicio) }}–{{ $hora($horario->hora_fin) }}
                                         </a>
-                                        <p class="font-medium text-gray-800">{{ $horario->especialidad }}</p>
-                                        <p class="text-gray-600">Fichas de {{ $horario->duracion_ficha_min }} min</p>
-                                        <p class="text-gray-600">{{ $horario->modalidad === 'VIRTUAL' ? 'Virtual' : $horario->consultorio }}</p>
-                                        <p class="text-gray-500">Desde {{ $fecha($horario->vigente_desde) }}{{ $horario->vigente_hasta ? ' hasta ' . $fecha($horario->vigente_hasta) : '' }}</p>
+                                        <p class="font-semibold text-marino-900">{{ $horario->especialidad }}</p>
+                                        <p class="text-slate-600">Fichas de {{ $horario->duracion_ficha_min }} min</p>
+                                        <p class="text-slate-600">{{ $horario->modalidad === 'VIRTUAL' ? 'Virtual' : $horario->consultorio }}</p>
+                                        <p class="text-slate-500">Desde {{ $fecha($horario->vigente_desde) }}{{ $horario->vigente_hasta ? ' hasta ' . $fecha($horario->vigente_hasta) : '' }}</p>
                                         {{-- Fichas futuras: habilitadas / bloqueadas / ocupadas --}}
                                         <p class="flex flex-wrap gap-1">
-                                            <span class="rounded bg-green-100 px-1 text-green-800" title="Habilitadas">{{ $horario->fichas_habilitadas }} libres</span>
-                                            <span class="rounded bg-gray-200 px-1 text-gray-700" title="Bloqueadas">{{ $horario->fichas_bloqueadas }} bloq.</span>
-                                            <span class="rounded bg-blue-100 px-1 text-blue-800" title="Ocupadas">{{ $horario->fichas_ocupadas }} ocup.</span>
+                                            <span class="rounded-full bg-teal-50 px-1.5 font-semibold text-teal-800" title="Habilitadas">{{ $horario->fichas_habilitadas }} libres</span>
+                                            <span class="rounded-full bg-slate-200 px-1.5 font-semibold text-slate-700" title="Bloqueadas">{{ $horario->fichas_bloqueadas }} bloq.</span>
+                                            <span class="rounded-full bg-blue-100 px-1.5 font-semibold text-blue-700" title="Ocupadas">{{ $horario->fichas_ocupadas }} ocup.</span>
                                         </p>
 
                                         {{-- CU09 A2: generar más semanas (idempotente) --}}
                                         <form method="POST" action="{{ route('horarios.generar') }}">
                                             @csrf
                                             <input type="hidden" name="id" value="{{ $horario->id }}">
-                                            <button class="text-indigo-600 hover:underline">Generar {{ $semanas }} semanas</button>
+                                            <button class="font-semibold text-teal-700 hover:underline">Generar {{ $semanas }} semanas</button>
                                         </form>
 
                                         {{-- CU09 A1: cerrar la vigencia (un horario no se edita) --}}
@@ -114,8 +114,8 @@
                                                 @csrf
                                                 <input type="hidden" name="id" value="{{ $horario->id }}">
                                                 <input type="date" name="fecha_cierre" value="{{ $hoy }}" min="{{ $hoy }}" required
-                                                       class="block w-full rounded-md border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                                <x-danger-button class="!px-2 !py-1 !text-[10px]">Cerrar</x-danger-button>
+                                                       class="block w-full rounded-lg border-slate-300 text-xs shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                                                <x-danger-button class="btn-chico">Cerrar</x-danger-button>
                                             </form>
                                         </details>
                                     </div>
@@ -123,54 +123,19 @@
                             </div>
                         @endforeach
                     </div>
-                    <p class="text-xs text-gray-500">Para cambiar un horario, cierre su vigencia y registre uno nuevo desde el día siguiente.</p>
-                </div>
-
-                {{-- CU09 paso 2: historial de horarios cerrados --}}
-                <div class="bg-white shadow-sm sm:rounded-lg p-6 space-y-4">
-                    <h3 class="text-lg font-medium text-gray-900">Horarios cerrados</h3>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 text-sm">
-                            <thead>
-                                <tr class="text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                    <th class="px-3 py-2">Día</th>
-                                    <th class="px-3 py-2">Horario</th>
-                                    <th class="px-3 py-2">Especialidad</th>
-                                    <th class="px-3 py-2">Modalidad</th>
-                                    <th class="px-3 py-2">Consultorio</th>
-                                    <th class="px-3 py-2">Vigencia</th>
-                                    <th class="px-3 py-2">Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                @forelse ($cerrados as $horario)
-                                    <tr>
-                                        <td class="px-3 py-2">{{ $dias[$horario->dia_semana] }}</td>
-                                        <td class="px-3 py-2 whitespace-nowrap"><a href="{{ route('horarios.mostrar', $horario->id) }}" class="text-indigo-600 hover:underline">{{ $hora($horario->hora_inicio) }}–{{ $hora($horario->hora_fin) }}</a></td>
-                                        <td class="px-3 py-2">{{ $horario->especialidad }}</td>
-                                        <td class="px-3 py-2">{{ $horario->modalidad === 'VIRTUAL' ? 'Virtual' : 'Presencial' }}</td>
-                                        <td class="px-3 py-2">{{ $horario->consultorio ?? '—' }}</td>
-                                        <td class="px-3 py-2 whitespace-nowrap">{{ $fecha($horario->vigente_desde) }} – {{ $fecha($horario->vigente_hasta) ?? 'sin fin' }}</td>
-                                        <td class="px-3 py-2"><x-estado :estado="$horario->estado" /></td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="7" class="px-3 py-6 text-center text-gray-500">El médico no tiene horarios cerrados.</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
+                    <p class="alerta-info">Para cambiar un horario, cierre su vigencia y registre uno nuevo desde el día siguiente.</p>
                 </div>
 
                 {{-- CU09 pasos 4 a 7: formulario de registro --}}
-                <div x-ref="formulario" x-show="abierto" x-cloak class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                    <section class="max-w-3xl space-y-6">
-                        <header>
-                            <h2 class="text-lg font-medium text-gray-900">Nuevo horario de {{ $medico->persona->nombre_completo }}</h2>
-                            <p class="mt-1 text-sm text-gray-600">Al guardar se generan las fichas de las próximas {{ $semanas }} semanas.</p>
+                <div x-ref="formulario" x-show="abierto" x-cloak class="tarjeta lg:col-span-1">
+                    <section class="space-y-6">
+                        <header class="space-y-3">
+                            <h2 class="tarjeta-titulo !mb-0">Nuevo horario de {{ $medico->persona->nombre_completo }}</h2>
+                            <p class="alerta-info">Al guardar se generan las fichas de las próximas {{ $semanas }} semanas.</p>
                         </header>
 
                         @if ($especialidades->isEmpty())
-                            <p class="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">El médico no ejerce ninguna especialidad activa: asígnele una en Médicos antes de registrar horarios.</p>
+                            <p class="alerta-aviso">El médico no ejerce ninguna especialidad activa: asígnele una en Médicos antes de registrar horarios.</p>
                         @endif
 
                         {{-- novalidate: la validación la hace validarHorario() (más abajo), en español --}}
@@ -178,64 +143,64 @@
                               @submit="if (! validarHorario($event.target)) $event.preventDefault()">
                             @csrf
 
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
                                 {{-- CU09 paso 4: solo las especialidades que ejerce (el valor es medico_especialidad_id) --}}
                                 <div>
                                     <x-input-label for="medico_especialidad_id" value="Especialidad" />
                                     <select id="medico_especialidad_id" name="medico_especialidad_id" x-model="form.medico_especialidad_id" @change="proponerDuracion()"
-                                            class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                            class="campo">
                                         <option value="">Seleccione…</option>
                                         @foreach ($especialidades as $especialidad)
                                             <option value="{{ $especialidad->id }}">{{ $especialidad->nombre }} ({{ $especialidad->duracion_sugerida_min }} min sugeridos)</option>
                                         @endforeach
                                     </select>
-                                    <p class="js-error mt-2 text-sm text-red-600" data-campo="medico_especialidad_id" hidden></p>
+                                    <p class="js-error" data-campo="medico_especialidad_id" hidden></p>
                                     @if ($volvioFormulario) <x-input-error :messages="$errors->get('medico_especialidad_id')" class="mt-2" /> @endif
                                 </div>
                                 <div>
                                     <x-input-label for="dia_semana" value="Día de la semana" />
                                     <select id="dia_semana" name="dia_semana" x-model="form.dia_semana"
-                                            class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                            class="campo">
                                         <option value="">Seleccione…</option>
                                         @foreach ($dias as $numero => $nombreDia)
                                             <option value="{{ $numero }}">{{ $nombreDia }}</option>
                                         @endforeach
                                     </select>
-                                    <p class="js-error mt-2 text-sm text-red-600" data-campo="dia_semana" hidden></p>
+                                    <p class="js-error" data-campo="dia_semana" hidden></p>
                                     @if ($volvioFormulario) <x-input-error :messages="$errors->get('dia_semana')" class="mt-2" /> @endif
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-1 2xl:grid-cols-3">
                                 <div>
                                     <x-input-label for="hora_inicio" value="Hora inicial" />
-                                    <x-text-input id="hora_inicio" name="hora_inicio" type="time" step="300" class="mt-1 block w-full" x-model="form.hora_inicio" />
-                                    <p class="js-error mt-2 text-sm text-red-600" data-campo="hora_inicio" hidden></p>
+                                    <x-text-input id="hora_inicio" name="hora_inicio" type="time" step="300" x-model="form.hora_inicio" />
+                                    <p class="js-error" data-campo="hora_inicio" hidden></p>
                                     @if ($volvioFormulario) <x-input-error :messages="$errors->get('hora_inicio')" class="mt-2" /> @endif
                                 </div>
                                 <div>
                                     <x-input-label for="hora_fin" value="Hora final" />
-                                    <x-text-input id="hora_fin" name="hora_fin" type="time" step="300" class="mt-1 block w-full" x-model="form.hora_fin" />
-                                    <p class="js-error mt-2 text-sm text-red-600" data-campo="hora_fin" hidden></p>
+                                    <x-text-input id="hora_fin" name="hora_fin" type="time" step="300" x-model="form.hora_fin" />
+                                    <p class="js-error" data-campo="hora_fin" hidden></p>
                                     @if ($volvioFormulario) <x-input-error :messages="$errors->get('hora_fin')" class="mt-2" /> @endif
                                 </div>
                                 <div>
                                     <x-input-label for="duracion_ficha_min" value="Duración de la ficha (min)" />
-                                    <x-text-input id="duracion_ficha_min" name="duracion_ficha_min" type="number" min="5" max="240" step="1" class="mt-1 block w-full" x-model="form.duracion_ficha_min" />
-                                    <p class="js-error mt-2 text-sm text-red-600" data-campo="duracion_ficha_min" hidden></p>
+                                    <x-text-input id="duracion_ficha_min" name="duracion_ficha_min" type="number" min="5" max="240" step="1" x-model="form.duracion_ficha_min" />
+                                    <p class="js-error" data-campo="duracion_ficha_min" hidden></p>
                                     @if ($volvioFormulario) <x-input-error :messages="$errors->get('duracion_ficha_min')" class="mt-2" /> @endif
                                 </div>
                             </div>
                             {{-- RF05 / RN08: cuántas fichas salen por día --}}
-                            <p class="text-sm" :class="resumen.ok ? 'text-green-700' : 'text-gray-500'" x-text="resumen.texto"></p>
+                            <p class="text-sm" :class="resumen.ok ? 'text-green-700' : 'text-slate-500'" x-text="resumen.texto"></p>
 
                             {{-- CU09 paso 6: modalidad y consultorio --}}
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
                                 <div>
                                     <x-input-label value="Modalidad" />
                                     <div class="mt-2 flex gap-6 text-sm">
-                                        <label class="flex items-center gap-2"><input type="radio" name="modalidad" value="PRESENCIAL" x-model="form.modalidad" class="text-indigo-600 focus:ring-indigo-500"> Presencial</label>
-                                        <label class="flex items-center gap-2"><input type="radio" name="modalidad" value="VIRTUAL" x-model="form.modalidad" @change="form.consultorio_id = ''" class="text-indigo-600 focus:ring-indigo-500"> Virtual</label>
+                                        <label class="flex items-center gap-2"><input type="radio" name="modalidad" value="PRESENCIAL" x-model="form.modalidad" class="text-teal-700 focus:ring-teal-500"> Presencial</label>
+                                        <label class="flex items-center gap-2"><input type="radio" name="modalidad" value="VIRTUAL" x-model="form.modalidad" @change="form.consultorio_id = ''" class="text-teal-700 focus:ring-teal-500"> Virtual</label>
                                     </div>
                                     @if ($volvioFormulario) <x-input-error :messages="$errors->get('modalidad')" class="mt-2" /> @endif
                                 </div>
@@ -243,41 +208,77 @@
                                     <x-input-label for="consultorio_id" value="Consultorio" />
                                     {{-- Un horario virtual no lleva consultorio: deshabilitado no se envía --}}
                                     <select id="consultorio_id" name="consultorio_id" x-model="form.consultorio_id" :disabled="form.modalidad !== 'PRESENCIAL'"
-                                            class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                            class="campo">
                                         <option value="">Seleccione…</option>
                                         @foreach ($consultorios as $consultorio)
                                             <option value="{{ $consultorio->id }}">{{ $consultorio->nombre }}</option>
                                         @endforeach
                                     </select>
-                                    <p class="js-error mt-2 text-sm text-red-600" data-campo="consultorio_id" hidden></p>
+                                    <p class="js-error" data-campo="consultorio_id" hidden></p>
                                     @if ($volvioFormulario) <x-input-error :messages="$errors->get('consultorio_id')" class="mt-2" /> @endif
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
                                 <div>
                                     <x-input-label for="vigente_desde" value="Vigente desde" />
-                                    <x-text-input id="vigente_desde" name="vigente_desde" type="date" min="{{ $hoy }}" class="mt-1 block w-full" x-model="form.vigente_desde" />
-                                    <p class="js-error mt-2 text-sm text-red-600" data-campo="vigente_desde" hidden></p>
+                                    <x-text-input id="vigente_desde" name="vigente_desde" type="date" min="{{ $hoy }}" x-model="form.vigente_desde" />
+                                    <p class="js-error" data-campo="vigente_desde" hidden></p>
                                     @if ($volvioFormulario) <x-input-error :messages="$errors->get('vigente_desde')" class="mt-2" /> @endif
                                 </div>
                                 <div>
                                     <x-input-label for="vigente_hasta" value="Vigente hasta (opcional)" />
-                                    <x-text-input id="vigente_hasta" name="vigente_hasta" type="date" ::min="form.vigente_desde" class="mt-1 block w-full" x-model="form.vigente_hasta" />
-                                    <p class="js-error mt-2 text-sm text-red-600" data-campo="vigente_hasta" hidden></p>
+                                    <x-text-input id="vigente_hasta" name="vigente_hasta" type="date" ::min="form.vigente_desde" x-model="form.vigente_hasta" />
+                                    <p class="js-error" data-campo="vigente_hasta" hidden></p>
                                     @if ($volvioFormulario) <x-input-error :messages="$errors->get('vigente_hasta')" class="mt-2" /> @endif
                                 </div>
                             </div>
 
-                            <div class="flex items-center gap-4">
+                            <div class="flex flex-wrap items-center gap-3">
                                 <x-primary-button>Registrar horario</x-primary-button>
                                 <x-secondary-button @click="abierto = false">Cancelar</x-secondary-button>
                             </div>
                         </form>
                     </section>
                 </div>
+                </div>
+
+                {{-- CU09 paso 2: historial de horarios cerrados --}}
+                <div class="tarjeta space-y-4">
+                    <h2 class="tarjeta-titulo !mb-0">Horarios cerrados</h2>
+                    <div class="tabla-contenedor">
+                        <table class="tabla">
+                            <thead>
+                                <tr>
+                                    <th>Día</th>
+                                    <th>Horario</th>
+                                    <th>Especialidad</th>
+                                    <th>Modalidad</th>
+                                    <th>Consultorio</th>
+                                    <th>Vigencia</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($cerrados as $horario)
+                                    <tr>
+                                        <td>{{ $dias[$horario->dia_semana] }}</td>
+                                        <td class="whitespace-nowrap"><a href="{{ route('horarios.mostrar', $horario->id) }}" class="font-semibold text-teal-700 hover:underline">{{ $hora($horario->hora_inicio) }}–{{ $hora($horario->hora_fin) }}</a></td>
+                                        <td>{{ $horario->especialidad }}</td>
+                                        <td>{{ $horario->modalidad === 'VIRTUAL' ? 'Virtual' : 'Presencial' }}</td>
+                                        <td>{{ $horario->consultorio ?? '—' }}</td>
+                                        <td class="whitespace-nowrap">{{ $fecha($horario->vigente_desde) }} – {{ $fecha($horario->vigente_hasta) ?? 'sin fin' }}</td>
+                                        <td><x-estado :estado="$horario->estado" /></td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="7" class="py-8 text-center text-slate-500">El médico no tiene horarios cerrados.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             @else
-                <p class="text-sm text-gray-600">Elija un médico para ver y gestionar sus horarios.</p>
+                <p class="alerta-info">Elija un médico para ver y gestionar sus horarios.</p>
             @endif
         </div>
     </div>

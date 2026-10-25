@@ -1,15 +1,15 @@
 {{-- CU12 A2: pedir un nuevo enlace de verificación del correo. --}}
 <x-guest-layout>
     @if (session('exito'))
-        <div class="mb-4 rounded-md bg-green-50 p-3 text-sm font-medium text-green-800">
+        <div class="alerta-exito mb-4 font-medium">
             {{ session('exito') }}
         </div>
     @endif
 
     @include('auth._enlace-desarrollo')
 
-    <h2 class="text-lg font-medium text-gray-900">Reenviar verificación</h2>
-    <p class="mt-1 text-sm text-gray-600">Escribe el correo de tu cuenta de paciente y te enviaremos un enlace nuevo (vence en 24 horas).</p>
+    <h2 class="tarjeta-titulo !mb-2">Reenviar verificación</h2>
+    <p class="mt-1 text-sm text-slate-600">Escribe el correo de tu cuenta de paciente y te enviaremos un enlace nuevo (vence en 24 horas).</p>
 
     {{-- novalidate: la validación la hace el script de abajo, en español. El servidor vuelve a validar. --}}
     <form id="form-reenviar" method="POST" action="{{ route('registro.reenviar.enviar') }}" class="mt-4" novalidate>
@@ -17,16 +17,16 @@
 
         <div>
             <x-input-label for="correo" value="Correo" />
-            <x-text-input id="correo" name="correo" type="email" maxlength="255" class="block mt-1 w-full" :value="old('correo', $correo)" required autofocus />
+            <x-text-input id="correo" name="correo" type="email" maxlength="255" :value="old('correo', $correo)" required autofocus />
             <p id="error-correo" class="mt-2 text-sm text-red-600" hidden></p>
             <x-input-error :messages="$errors->get('correo')" class="mt-2" />
         </div>
 
-        <div class="flex items-center justify-between mt-4">
+        <div class="mt-5 flex flex-col-reverse items-center gap-4 sm:flex-row sm:justify-between">
             @auth
-                <a href="{{ route('panel') }}" class="text-sm text-indigo-600 hover:underline">Volver al panel</a>
+                <a href="{{ route('panel') }}" class="text-sm font-semibold text-teal-700 hover:underline">Volver al panel</a>
             @else
-                <a href="{{ route('login') }}" class="text-sm text-indigo-600 hover:underline">Volver a iniciar sesión</a>
+                <a href="{{ route('login') }}" class="text-sm font-semibold text-teal-700 hover:underline">Volver a iniciar sesión</a>
             @endauth
             <x-primary-button>Enviar enlace</x-primary-button>
         </div>

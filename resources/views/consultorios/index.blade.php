@@ -10,12 +10,10 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Gestionar consultorios
-        </h2>
+        <x-encabezado ruta="Catálogos / Consultorios" titulo="Gestionar consultorios" />
     </x-slot>
 
-    <div class="py-12"
+    <div class="space-y-6"
          x-data="{
             abierto: {{ Js::from($volvioFormulario) }},
             vacio: { id: null, nombre: '', ubicacion: '' },
@@ -29,10 +27,10 @@
                 this.$nextTick(() => this.$refs.formulario.scrollIntoView({ behavior: 'smooth' }));
             },
          }">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="space-y-6">
             {{-- CU08 A1 y otros errores de desactivar/activar (no son del formulario) --}}
             @if ($errors->hasAny(['operacion', 'id']) && ! $volvioFormulario)
-                <div class="rounded-md bg-red-50 p-4 text-sm font-medium text-red-800">
+                <div class="alerta-error font-medium">
                     <ul class="space-y-1">
                         @foreach (array_merge($errors->get('operacion'), $errors->get('id')) as $error)
                             <li>{{ $error }}</li>
@@ -41,41 +39,43 @@
                 </div>
             @endif
 
+            <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             {{-- CU08 pasos 1-2: lista --}}
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900 space-y-4">
-                    <div class="flex justify-end">
+            <div class="tarjeta" :class="abierto ? 'lg:col-span-2' : 'lg:col-span-3'">
+                <div class="space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <h2 class="tarjeta-titulo !mb-0">Consultorios registrados</h2>
                         {{-- CU08 paso 3 --}}
                         <x-primary-button type="button" @click="nuevo()">Nuevo consultorio</x-primary-button>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <div class="tabla-contenedor">
+                        <table class="tabla">
                             <thead>
-                                <tr class="text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                    <th class="px-3 py-2">Nombre</th>
-                                    <th class="px-3 py-2">Ubicación</th>
-                                    <th class="px-3 py-2">Estado</th>
-                                    <th class="px-3 py-2">Horarios activos</th>
-                                    <th class="px-3 py-2">Acciones</th>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Ubicación</th>
+                                    <th>Estado</th>
+                                    <th>Horarios activos</th>
+                                    <th class="text-right">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100">
+                            <tbody>
                                 @forelse ($consultorios as $consultorio)
                                     <tr class="align-top">
-                                        <td class="px-3 py-3">
-                                            <a href="{{ route('consultorios.mostrar', $consultorio->id) }}" class="font-medium text-indigo-600 hover:underline">
+                                        <td>
+                                            <a href="{{ route('consultorios.mostrar', $consultorio->id) }}" class="font-semibold text-marino-900 hover:text-teal-700 hover:underline">
                                                 {{ $consultorio->nombre }}
                                             </a>
                                         </td>
-                                        <td class="px-3 py-3 text-gray-600">{{ $consultorio->ubicacion }}</td>
-                                        <td class="px-3 py-3"><x-estado :estado="$consultorio->estado" /></td>
-                                        <td class="px-3 py-3">{{ $consultorio->horarios_activos_count }}</td>
-                                        <td class="px-3 py-3">
-                                            <div class="flex flex-wrap items-center gap-2">
-                                                <x-secondary-button @click="editar({{ Js::from($consultorio->only(['id', 'nombre', 'ubicacion'])) }})">
+                                        <td class="text-slate-600">{{ $consultorio->ubicacion }}</td>
+                                        <td><x-estado :estado="$consultorio->estado" /></td>
+                                        <td>{{ $consultorio->horarios_activos_count }}</td>
+                                        <td>
+                                            <div class="acciones">
+                                                <button type="button" class="accion" @click="editar({{ Js::from($consultorio->only(['id', 'nombre', 'ubicacion'])) }})">
                                                     Modificar
-                                                </x-secondary-button>
+                                                </button>
 
                                                 @if ($consultorio->estado === 'ACTIVO')
                                                     {{-- CU08 A1: desactivar con confirmación; el id viaja oculto --}}
@@ -83,13 +83,13 @@
                                                           onsubmit="return confirm({{ Js::from('¿Desactivar el consultorio '.$consultorio->nombre.'?') }});">
                                                         @csrf
                                                         <input type="hidden" name="id" value="{{ $consultorio->id }}">
-                                                        <x-danger-button>Desactivar</x-danger-button>
+                                                        <button type="submit" class="accion-peligro">Desactivar</button>
                                                     </form>
                                                 @else
                                                     <form method="POST" action="{{ route('consultorios.activar') }}">
                                                         @csrf
                                                         <input type="hidden" name="id" value="{{ $consultorio->id }}">
-                                                        <x-primary-button>Activar</x-primary-button>
+                                                        <button type="submit" class="accion">Activar</button>
                                                     </form>
                                                 @endif
                                             </div>
@@ -97,7 +97,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="px-3 py-6 text-center text-gray-500">No hay consultorios registrados.</td>
+                                        <td colspan="5" class="py-8 text-center text-slate-500">No hay consultorios registrados.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -107,10 +107,10 @@
             </div>
 
             {{-- CU08 paso 3: formulario de registro y modificación --}}
-            <div x-ref="formulario" x-show="abierto" x-cloak class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                <section class="max-w-xl">
+            <div x-ref="formulario" x-show="abierto" x-cloak class="tarjeta lg:col-span-1">
+                <section>
                     <header>
-                        <h2 class="text-lg font-medium text-gray-900" x-text="form.id ? 'Modificar consultorio' : 'Nuevo consultorio'"></h2>
+                        <h2 class="tarjeta-titulo !mb-0" x-text="form.id ? 'Modificar consultorio' : 'Nuevo consultorio'"></h2>
                     </header>
 
                     {{-- novalidate: la validación del navegador la hace validarConsultorio() (más abajo), en español --}}
@@ -125,23 +125,24 @@
                         <div>
                             <x-input-label for="nombre" value="Nombre" />
                             <x-text-input id="nombre" name="nombre" type="text" class="mt-1 block w-full" x-model="form.nombre" maxlength="255" placeholder="Por ejemplo, C-101" />
-                            <p class="js-error mt-2 text-sm text-red-600" data-campo="nombre" hidden></p>
+                            <p class="js-error" data-campo="nombre" hidden></p>
                             @if ($volvioFormulario) <x-input-error :messages="$errors->get('nombre')" class="mt-2" /> @endif
                         </div>
 
                         <div>
                             <x-input-label for="ubicacion" value="Ubicación" />
                             <x-text-input id="ubicacion" name="ubicacion" type="text" class="mt-1 block w-full" x-model="form.ubicacion" maxlength="255" placeholder="Por ejemplo, Primer piso, ala norte" />
-                            <p class="js-error mt-2 text-sm text-red-600" data-campo="ubicacion" hidden></p>
+                            <p class="js-error" data-campo="ubicacion" hidden></p>
                             @if ($volvioFormulario) <x-input-error :messages="$errors->get('ubicacion')" class="mt-2" /> @endif
                         </div>
 
-                        <div class="flex items-center gap-4">
+                        <div class="flex flex-wrap items-center gap-3">
                             <x-primary-button x-text="form.id ? 'Guardar cambios' : 'Registrar'">Guardar</x-primary-button>
                             <x-secondary-button @click="abierto = false">Cancelar</x-secondary-button>
                         </div>
                     </form>
                 </section>
+            </div>
             </div>
         </div>
     </div>

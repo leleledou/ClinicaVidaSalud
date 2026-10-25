@@ -9,18 +9,15 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Horario: {{ $dias[$horario->dia_semana] }} {{ $hora($horario->hora_inicio) }}–{{ $hora($horario->hora_fin) }}
-            </h2>
-            <a href="{{ route('horarios.listar', ['medico_id' => $asignacion->medico_id]) }}" class="text-sm text-indigo-600 hover:underline">Volver a los horarios del médico</a>
-        </div>
+        <x-encabezado ruta="Catálogos / Horarios" :titulo="'Horario: ' . $dias[$horario->dia_semana] . ' ' . $hora($horario->hora_inicio) . '–' . $hora($horario->hora_fin)">
+            <a href="{{ route('horarios.listar', ['medico_id' => $asignacion->medico_id]) }}" class="font-semibold text-teal-700 hover:underline">Volver a los horarios del médico</a>
+        </x-encabezado>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+    <div class="space-y-6">
+        <div class="space-y-6">
             @if ($errors->any())
-                <div class="rounded-md bg-red-50 p-4 text-sm font-medium text-red-800">
+                <div class="alerta-error font-medium">
                     <ul class="space-y-1">
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>
@@ -30,20 +27,21 @@
             @endif
 
             {{-- Datos del horario --}}
-            <div class="bg-white shadow-sm sm:rounded-lg p-6 space-y-4">
-                <dl class="grid grid-cols-1 sm:grid-cols-4 gap-x-6 gap-y-4 text-sm">
-                    <div><dt class="font-medium text-gray-500">Médico</dt><dd class="mt-1">{{ $asignacion->medico->codigo }} · {{ $asignacion->medico->persona->nombre_completo }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Especialidad</dt><dd class="mt-1">{{ $asignacion->especialidad->nombre }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Día y horario</dt><dd class="mt-1">{{ $dias[$horario->dia_semana] }} de {{ $hora($horario->hora_inicio) }} a {{ $hora($horario->hora_fin) }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Duración de la ficha</dt><dd class="mt-1">{{ $horario->duracion_ficha_min }} minutos</dd></div>
-                    <div><dt class="font-medium text-gray-500">Modalidad</dt><dd class="mt-1">{{ $horario->modalidad === 'VIRTUAL' ? 'Virtual' : 'Presencial' }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Consultorio</dt><dd class="mt-1">{{ $horario->consultorio?->nombre ?? '—' }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Vigencia</dt><dd class="mt-1">Desde {{ $fecha($horario->vigente_desde) }} {{ $horario->vigente_hasta ? 'hasta ' . $fecha($horario->vigente_hasta) : '(sin fecha de fin)' }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Estado</dt><dd class="mt-1"><x-estado :estado="$vigente ? 'ACTIVO' : 'INACTIVO'" /> {{ $vigente ? '' : '(cerrado)' }}</dd></div>
+            <div class="tarjeta space-y-4">
+                <h2 class="tarjeta-titulo">Datos del horario</h2>
+                <dl class="grid grid-cols-1 gap-x-10 xl:grid-cols-2">
+                    <div class="dato"><dt>Médico</dt><dd>{{ $asignacion->medico->codigo }} · {{ $asignacion->medico->persona->nombre_completo }}</dd></div>
+                    <div class="dato"><dt>Especialidad</dt><dd>{{ $asignacion->especialidad->nombre }}</dd></div>
+                    <div class="dato"><dt>Día y horario</dt><dd>{{ $dias[$horario->dia_semana] }} de {{ $hora($horario->hora_inicio) }} a {{ $hora($horario->hora_fin) }}</dd></div>
+                    <div class="dato"><dt>Duración de la ficha</dt><dd>{{ $horario->duracion_ficha_min }} minutos</dd></div>
+                    <div class="dato"><dt>Modalidad</dt><dd>{{ $horario->modalidad === 'VIRTUAL' ? 'Virtual' : 'Presencial' }}</dd></div>
+                    <div class="dato"><dt>Consultorio</dt><dd>{{ $horario->consultorio?->nombre ?? '—' }}</dd></div>
+                    <div class="dato"><dt>Vigencia</dt><dd>Desde {{ $fecha($horario->vigente_desde) }} {{ $horario->vigente_hasta ? 'hasta ' . $fecha($horario->vigente_hasta) : '(sin fecha de fin)' }}</dd></div>
+                    <div class="dato"><dt>Estado</dt><dd><x-estado :estado="$vigente ? 'ACTIVO' : 'INACTIVO'" /> {{ $vigente ? '' : '(cerrado)' }}</dd></div>
                 </dl>
 
                 @if ($vigente)
-                    <div class="flex flex-wrap items-end gap-4 border-t border-gray-100 pt-4">
+                    <div class="flex flex-wrap items-end gap-4 border-t border-slate-100 pt-4">
                         {{-- CU09 A2 --}}
                         <form method="POST" action="{{ route('horarios.generar') }}">
                             @csrf
@@ -67,22 +65,22 @@
             </div>
 
             {{-- Fichas desde hoy --}}
-            <div class="bg-white shadow-sm sm:rounded-lg p-6 space-y-4">
-                <h3 class="text-lg font-medium text-gray-900">Fichas desde hoy</h3>
+            <div class="tarjeta space-y-4">
+                <h2 class="tarjeta-titulo">Fichas desde hoy</h2>
 
                 @forelse ($porFecha as $dia => $lista)
                     <div>
-                        <p class="mb-2 text-sm font-semibold text-gray-700">{{ $dias[\Illuminate\Support\Carbon::parse($dia)->dayOfWeekIso] }} {{ $fecha($dia) }}</p>
+                        <p class="mb-2 text-sm font-semibold text-slate-700">{{ $dias[\Illuminate\Support\Carbon::parse($dia)->dayOfWeekIso] }} {{ $fecha($dia) }}</p>
                         <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                             @foreach ($lista as $ficha)
                                 @php
                                     $estado = $ficha->cita_codigo ? 'OCUPADA' : ($ficha->estado === 'BLOQUEADA' ? 'BLOQUEADA' : 'DISPONIBLE');
                                 @endphp
                                 <div @class([
-                                    'rounded-md border p-2 text-xs',
+                                    'rounded-lg border p-2 text-xs',
                                     'border-green-200 bg-green-50 text-green-800' => $estado === 'DISPONIBLE',
                                     'border-blue-200 bg-blue-50 text-blue-800' => $estado === 'OCUPADA',
-                                    'border-gray-200 bg-gray-100 text-gray-600' => $estado === 'BLOQUEADA',
+                                    'border-slate-200 bg-slate-100 text-slate-600' => $estado === 'BLOQUEADA',
                                 ])>
                                     <p class="font-semibold">{{ $hora($ficha->hora_inicio) }}–{{ $hora($ficha->hora_fin) }}</p>
                                     <p>{{ $estado }}</p>
@@ -96,7 +94,7 @@
                         </div>
                     </div>
                 @empty
-                    <p class="text-sm text-gray-500">El horario no tiene fichas desde hoy.@if ($vigente) Use «Generar más semanas».@endif</p>
+                    <p class="text-sm text-slate-500">El horario no tiene fichas desde hoy.@if ($vigente) Use «Generar más semanas».@endif</p>
                 @endforelse
 
                 <x-paginacion :paginador="$fichas" />

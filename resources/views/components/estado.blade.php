@@ -1,8 +1,11 @@
-{{-- Etiqueta de estado: verde ACTIVO, gris INACTIVO (RN11: los registros no se borran, se desactivan). --}}
+{{-- Etiqueta de estado: verde ACTIVO, gris INACTIVO (RN11: los registros no se borran, se desactivan).
+     También DISPONIBLE (verde agua) y BLOQUEADA (gris oscuro) para las fichas. --}}
 @props(['estado'])
 
 <span @class([
-    'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
-    'bg-green-100 text-green-800' => $estado === 'ACTIVO',
-    'bg-gray-200 text-gray-700' => $estado !== 'ACTIVO',
+    'insignia',
+    'insignia-activo' => $estado === 'ACTIVO',
+    'insignia-disponible' => $estado === 'DISPONIBLE',
+    'insignia-bloqueada' => $estado === 'BLOQUEADA',
+    'insignia-inactivo' => ! in_array($estado, ['ACTIVO', 'DISPONIBLE', 'BLOQUEADA'], true),
 ])>{{ $estado }}</span>

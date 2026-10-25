@@ -16,28 +16,25 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Usuario: {{ $usuario->nombre_usuario }}
-            </h2>
-            <a href="{{ route('usuarios.listar') }}" class="text-sm text-indigo-600 hover:underline">Volver a la lista</a>
-        </div>
+        <x-encabezado ruta="Seguridad / Usuarios" :titulo="'Usuario: ' . $usuario->nombre_usuario">
+            <a href="{{ route('usuarios.listar') }}" class="font-semibold text-teal-700 hover:underline">Volver a la lista</a>
+        </x-encabezado>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+    <div class="space-y-6">
+        <div class="space-y-6">
             {{-- CU04 paso 8 / A2: contraseña temporal, UNA sola vez (no se guarda en ningún lado visible) --}}
             @if ($temporal)
-                <div class="rounded-md border-2 border-indigo-300 bg-indigo-50 p-5">
-                    <p class="text-sm font-medium text-indigo-900">Contraseña temporal de «{{ $usuario->nombre_usuario }}»:</p>
-                    <p class="mt-2 select-all font-mono text-2xl font-bold tracking-wider text-indigo-900">{{ $temporal }}</p>
-                    <p class="mt-2 text-sm text-indigo-900">Entréguela al usuario: deberá cambiarla al ingresar. No se volverá a mostrar.</p>
-                    <p class="mt-1 text-xs text-indigo-700">También se envió al correo de acceso {{ $usuario->correo }}.</p>
+                <div class="rounded-2xl border-2 border-teal-300 bg-teal-50 p-6">
+                    <p class="text-sm font-medium text-teal-900">Contraseña temporal de «{{ $usuario->nombre_usuario }}»:</p>
+                    <p class="mt-2 select-all font-mono text-2xl font-bold tracking-wider text-teal-900">{{ $temporal }}</p>
+                    <p class="mt-2 text-sm text-teal-900">Entréguela al usuario: deberá cambiarla al ingresar. No se volverá a mostrar.</p>
+                    <p class="mt-1 text-xs text-teal-700">También se envió al correo de acceso {{ $usuario->correo }}.</p>
                 </div>
             @endif
 
             @if ($errors->any())
-                <div class="rounded-md bg-red-50 p-4 text-sm font-medium text-red-800">
+                <div class="alerta-error font-medium">
                     <ul class="space-y-1">
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>
@@ -47,24 +44,24 @@
             @endif
 
             {{-- Datos de la cuenta --}}
-            <div class="bg-white shadow-sm sm:rounded-lg p-6 space-y-4">
-                <h3 class="text-lg font-medium text-gray-900">Cuenta de acceso</h3>
-                <dl class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
-                    <div><dt class="font-medium text-gray-500">Nombre de usuario</dt><dd class="mt-1">{{ $usuario->nombre_usuario }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Correo de acceso</dt><dd class="mt-1">{{ $usuario->correo }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Rol</dt><dd class="mt-1">{{ $usuario->rol->nombre }} @if ($usuario->rol->estado !== 'ACTIVO') <span class="text-xs text-yellow-700">(rol inactivo)</span> @endif</dd></div>
-                    <div><dt class="font-medium text-gray-500">Estado</dt><dd class="mt-1"><x-estado :estado="$usuario->estado" /></dd></div>
-                    <div><dt class="font-medium text-gray-500">Último acceso</dt><dd class="mt-1">{{ $usuario->ultimo_acceso?->format('d/m/Y H:i') ?? 'Nunca' }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Intentos fallidos</dt><dd class="mt-1">{{ $usuario->intentos_fallidos }}</dd></div>
-                    <div>
-                        <dt class="font-medium text-gray-500">Bloqueo</dt>
-                        <dd class="mt-1">{{ $bloqueado ? 'Bloqueado hasta ' . $usuario->bloqueado_hasta->format('d/m/Y H:i') : 'No bloqueado' }}</dd>
+            <div class="tarjeta space-y-4">
+                <h2 class="tarjeta-titulo">Cuenta de acceso</h2>
+                <dl class="grid grid-cols-1 gap-x-10 xl:grid-cols-2">
+                    <div class="dato"><dt>Nombre de usuario</dt><dd>{{ $usuario->nombre_usuario }}</dd></div>
+                    <div class="dato"><dt>Correo de acceso</dt><dd>{{ $usuario->correo }}</dd></div>
+                    <div class="dato"><dt>Rol</dt><dd>{{ $usuario->rol->nombre }} @if ($usuario->rol->estado !== 'ACTIVO') <span class="text-xs text-amber-700">(rol inactivo)</span> @endif</dd></div>
+                    <div class="dato"><dt>Estado</dt><dd><x-estado :estado="$usuario->estado" /></dd></div>
+                    <div class="dato"><dt>Último acceso</dt><dd>{{ $usuario->ultimo_acceso?->format('d/m/Y H:i') ?? 'Nunca' }}</dd></div>
+                    <div class="dato"><dt>Intentos fallidos</dt><dd>{{ $usuario->intentos_fallidos }}</dd></div>
+                    <div class="dato">
+                        <dt>Bloqueo</dt>
+                        <dd>{{ $bloqueado ? 'Bloqueado hasta ' . $usuario->bloqueado_hasta->format('d/m/Y H:i') : 'No bloqueado' }}</dd>
                     </div>
-                    <div><dt class="font-medium text-gray-500">Debe cambiar la contraseña</dt><dd class="mt-1">{{ $usuario->debe_cambiar_password ? 'Sí' : 'No' }}</dd></div>
+                    <div class="dato"><dt>Debe cambiar la contraseña</dt><dd>{{ $usuario->debe_cambiar_password ? 'Sí' : 'No' }}</dd></div>
                 </dl>
 
                 {{-- CU04 A2 y A3 --}}
-                <div class="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4">
+                <div class="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
                     @if ($bloqueado)
                         <form method="POST" action="{{ route('usuarios.desbloquear') }}">
                             @csrf
@@ -95,74 +92,76 @@
                         </form>
                     @endif
 
-                    <a href="{{ route('usuarios.listar', ['q' => $usuario->nombre_usuario]) }}" class="text-sm text-indigo-600 hover:underline">Modificar (en la lista)</a>
+                    <a href="{{ route('usuarios.listar', ['q' => $usuario->nombre_usuario]) }}" class="text-sm font-semibold text-teal-700 hover:underline">Modificar (en la lista)</a>
                 </div>
             </div>
 
             {{-- Persona y perfiles --}}
-            <div class="bg-white shadow-sm sm:rounded-lg p-6 space-y-4">
-                <h3 class="text-lg font-medium text-gray-900">Persona</h3>
-                <dl class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
-                    <div><dt class="font-medium text-gray-500">Nombre</dt><dd class="mt-1">{{ $persona->nombre_completo }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Documento</dt><dd class="mt-1">{{ $documento }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Fecha de nacimiento</dt><dd class="mt-1">{{ $persona->fecha_nacimiento?->format('d/m/Y') }} ({{ $persona->edad }} años)</dd></div>
-                    <div><dt class="font-medium text-gray-500">Teléfono</dt><dd class="mt-1">{{ $persona->telefono }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Correo de contacto</dt><dd class="mt-1">{{ $persona->correo ?? '—' }}</dd></div>
+            <div class="tarjeta space-y-4">
+                <h2 class="tarjeta-titulo">Persona</h2>
+                <dl class="grid grid-cols-1 gap-x-10 xl:grid-cols-2">
+                    <div class="dato"><dt>Nombre</dt><dd>{{ $persona->nombre_completo }}</dd></div>
+                    <div class="dato"><dt>Documento</dt><dd>{{ $documento }}</dd></div>
+                    <div class="dato"><dt>Fecha de nacimiento</dt><dd>{{ $persona->fecha_nacimiento?->format('d/m/Y') }} ({{ $persona->edad }} años)</dd></div>
+                    <div class="dato"><dt>Teléfono</dt><dd>{{ $persona->telefono }}</dd></div>
+                    <div class="dato"><dt>Correo de contacto</dt><dd>{{ $persona->correo ?? '—' }}</dd></div>
                 </dl>
 
-                <table class="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead>
-                        <tr class="text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                            <th class="px-3 py-2">Perfil</th>
-                            <th class="px-3 py-2">Código</th>
-                            <th class="px-3 py-2">Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        @foreach ($perfiles as $nombre => [$modelo, $enlace, $permiso])
+                <div class="tabla-contenedor">
+                    <table class="tabla">
+                        <thead>
                             <tr>
-                                <td class="px-3 py-2">{{ $nombre }}</td>
-                                <td class="px-3 py-2">
-                                    @if (! $modelo)
-                                        <span class="text-gray-400">No tiene</span>
-                                    @elseif ($enlace && auth()->user()->can($permiso))
-                                        <a href="{{ $enlace }}" class="text-indigo-600 hover:underline">{{ $modelo->codigo }}</a>
-                                    @else
-                                        {{ $modelo->codigo }}
-                                    @endif
-                                </td>
-                                <td class="px-3 py-2">@if ($modelo) <x-estado :estado="$modelo->estado" /> @endif</td>
+                                <th>Perfil</th>
+                                <th>Código</th>
+                                <th>Estado</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach ($perfiles as $nombre => [$modelo, $enlace, $permiso])
+                                <tr>
+                                    <td>{{ $nombre }}</td>
+                                    <td>
+                                        @if (! $modelo)
+                                            <span class="text-slate-400">No tiene</span>
+                                        @elseif ($enlace && auth()->user()->can($permiso))
+                                            <a href="{{ $enlace }}" class="text-teal-700 hover:underline">{{ $modelo->codigo }}</a>
+                                        @else
+                                            {{ $modelo->codigo }}
+                                        @endif
+                                    </td>
+                                    <td>@if ($modelo) <x-estado :estado="$modelo->estado" /> @endif</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+    </table>
+                </div>
             </div>
 
             {{-- Últimas 20 acciones en la bitácora --}}
-            <div class="bg-white shadow-sm sm:rounded-lg p-6 space-y-4">
-                <h3 class="text-lg font-medium text-gray-900">Últimas acciones</h3>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <div class="tarjeta space-y-4">
+                <h2 class="tarjeta-titulo">Últimas acciones</h2>
+                <div class="tabla-contenedor">
+                    <table class="tabla">
                         <thead>
-                            <tr class="text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                <th class="px-3 py-2">Fecha</th>
-                                <th class="px-3 py-2">Acción</th>
-                                <th class="px-3 py-2">Módulo</th>
-                                <th class="px-3 py-2">Resultado</th>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Acción</th>
+                                <th>Módulo</th>
+                                <th>Resultado</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100">
+                        <tbody>
                             @forelse ($acciones as $accion)
                                 <tr>
-                                    <td class="px-3 py-2 whitespace-nowrap">{{ \Illuminate\Support\Carbon::parse($accion->fecha_hora)->format('d/m/Y H:i:s') }}</td>
-                                    <td class="px-3 py-2">{{ $accion->accion }}</td>
-                                    <td class="px-3 py-2">{{ $accion->modulo }}</td>
-                                    <td class="px-3 py-2">
+                                    <td class="whitespace-nowrap">{{ \Illuminate\Support\Carbon::parse($accion->fecha_hora)->format('d/m/Y H:i:s') }}</td>
+                                    <td>{{ $accion->accion }}</td>
+                                    <td>{{ $accion->modulo }}</td>
+                                    <td>
                                         <span @class(['font-semibold', 'text-green-700' => $accion->exito, 'text-red-700' => ! $accion->exito])>{{ $accion->exito ? 'Éxito' : 'Fallido' }}</span>
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="4" class="px-3 py-6 text-center text-gray-500">Este usuario aún no tiene acciones registradas.</td></tr>
+                                <tr><td colspan="4" class="py-8 text-center text-slate-500">Este usuario aún no tiene acciones registradas.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

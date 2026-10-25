@@ -20,12 +20,10 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Pacientes
-        </h2>
+        <x-encabezado ruta="Pacientes / Buscar" titulo="Pacientes" />
     </x-slot>
 
-    <div class="py-12"
+    <div class="space-y-6"
          x-data="formularioPersona({
             vacio: {{ Js::from($vacio) }},
             inicial: {{ Js::from($inicial) }},
@@ -35,9 +33,9 @@
             urlBuscar: {{ Js::from(route('personas.buscar')) }},
             urlFichaPaciente: {{ Js::from(route('pacientes.mostrar', '__ID__')) }},
          })">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="space-y-6">
             @if ($errors->hasAny(['operacion', 'id']) && ! $volvioFormulario)
-                <div class="rounded-md bg-red-50 p-4 text-sm font-medium text-red-800">
+                <div class="alerta-error font-medium">
                     <ul class="space-y-1">
                         @foreach (array_merge($errors->get('operacion'), $errors->get('id')) as $error)
                             <li>{{ $error }}</li>
@@ -46,21 +44,28 @@
                 </div>
             @endif
 
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900 space-y-4">
-                    {{-- CU11 pasos 1-2: un solo buscador --}}
-                    <div class="flex flex-wrap items-end justify-between gap-4">
-                        <form method="GET" action="{{ route('pacientes.listar') }}" class="flex flex-wrap items-end gap-3">
-                            <div>
-                                <x-input-label for="q" value="Documento, código o nombre" />
-                                <x-text-input id="q" name="q" type="search" class="mt-1 block w-80" :value="$texto" placeholder="Por ejemplo, 9910004, PAC-000004 o Flores" />
-                            </div>
-                            <x-primary-button>Buscar</x-primary-button>
-                            @if ($texto !== '')
-                                <a href="{{ route('pacientes.listar') }}" class="text-sm text-gray-600 hover:underline">Limpiar</a>
-                            @endif
-                        </form>
+            {{-- CU11 pasos 1-2: un solo buscador --}}
+            <div class="tarjeta">
+                <h2 class="tarjeta-titulo">Filtros</h2>
+                <form method="GET" action="{{ route('pacientes.listar') }}" class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div class="lg:col-span-2">
+                        <x-input-label for="q" value="Documento, código o nombre" />
+                        <x-text-input id="q" name="q" type="search" :value="$texto" placeholder="Por ejemplo, 9910004, PAC-000004 o Flores" />
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <x-primary-button>Buscar</x-primary-button>
+                        @if ($texto !== '')
+                            <a href="{{ route('pacientes.listar') }}" class="btn-secundario">Limpiar</a>
+                        @endif
+                    </div>
+                </form>
+            </div>
 
+            <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+            <div class="tarjeta" :class="abierto ? 'lg:col-span-2' : 'lg:col-span-3'">
+                <div class="space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <h2 class="tarjeta-titulo !mb-0">Pacientes registrados</h2>
                         {{-- CU10 paso 1 --}}
                         @can('pacientes.gestionar')
                             <x-primary-button type="button" @click="nuevo()">Registrar paciente</x-primary-button>
@@ -68,43 +73,43 @@
                     </div>
 
                     {{-- CU11 paso 4: lista --}}
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <div class="tabla-contenedor">
+                        <table class="tabla">
                             <thead>
-                                <tr class="text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                    <th class="px-3 py-2">Código</th>
-                                    <th class="px-3 py-2">Documento</th>
-                                    <th class="px-3 py-2">Nombre</th>
-                                    <th class="px-3 py-2">Edad</th>
-                                    <th class="px-3 py-2">Teléfono</th>
-                                    <th class="px-3 py-2">Estado</th>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Documento</th>
+                                    <th>Nombre</th>
+                                    <th>Edad</th>
+                                    <th>Teléfono</th>
+                                    <th>Estado</th>
                                     @can('pacientes.gestionar')
-                                        <th class="px-3 py-2">Acciones</th>
+                                        <th class="text-right">Acciones</th>
                                     @endcan
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100">
+                            <tbody>
                                 @forelse ($pacientes as $paciente)
                                     <tr class="align-top">
                                         {{-- CU11 paso 5: el código y el nombre abren la ficha --}}
-                                        <td class="px-3 py-3 whitespace-nowrap">
-                                            <a href="{{ route('pacientes.mostrar', $paciente->id) }}" class="text-indigo-600 hover:underline">{{ $paciente->codigo }}</a>
+                                        <td class="whitespace-nowrap">
+                                            <a href="{{ route('pacientes.mostrar', $paciente->id) }}" class="font-semibold text-teal-700 hover:underline">{{ $paciente->codigo }}</a>
                                         </td>
-                                        <td class="px-3 py-3 whitespace-nowrap">{{ $documento($paciente->persona) }}</td>
-                                        <td class="px-3 py-3">
-                                            <a href="{{ route('pacientes.mostrar', $paciente->id) }}" class="font-medium text-indigo-600 hover:underline">
+                                        <td class="whitespace-nowrap">{{ $documento($paciente->persona) }}</td>
+                                        <td>
+                                            <a href="{{ route('pacientes.mostrar', $paciente->id) }}" class="font-semibold text-marino-900 hover:text-teal-700 hover:underline">
                                                 {{ $paciente->persona->nombre_completo }}
                                             </a>
                                         </td>
-                                        <td class="px-3 py-3 whitespace-nowrap">{{ $paciente->persona->edad }} años</td>
-                                        <td class="px-3 py-3 whitespace-nowrap">{{ $paciente->persona->telefono }}</td>
+                                        <td class="whitespace-nowrap">{{ $paciente->persona->edad }} años</td>
+                                        <td class="whitespace-nowrap">{{ $paciente->persona->telefono }}</td>
                                         {{-- CU11 A2: los inactivos aparecen con su etiqueta --}}
-                                        <td class="px-3 py-3"><x-estado :estado="$paciente->estado" /></td>
+                                        <td><x-estado :estado="$paciente->estado" /></td>
                                         @can('pacientes.gestionar')
-                                            <td class="px-3 py-3">
-                                                <div class="flex flex-wrap items-center gap-2">
+                                            <td>
+                                                <div class="acciones">
                                                     {{-- CU10 A2 --}}
-                                                    <x-secondary-button @click="editar({{ Js::from($datosEditar($paciente)) }})">Modificar</x-secondary-button>
+                                                    <button type="button" class="accion" @click="editar({{ Js::from($datosEditar($paciente)) }})">Modificar</button>
 
                                                     @if ($paciente->estado === 'ACTIVO')
                                                         {{-- CU10 A3: desactivar con confirmación; el id viaja oculto --}}
@@ -112,13 +117,13 @@
                                                               onsubmit="return confirm({{ Js::from('¿Desactivar al paciente '.$paciente->persona->nombre_completo.' ('.$paciente->codigo.')?') }});">
                                                             @csrf
                                                             <input type="hidden" name="id" value="{{ $paciente->id }}">
-                                                            <x-danger-button>Desactivar</x-danger-button>
+                                                            <button type="submit" class="accion-peligro">Desactivar</button>
                                                         </form>
                                                     @else
                                                         <form method="POST" action="{{ route('pacientes.activar') }}">
                                                             @csrf
                                                             <input type="hidden" name="id" value="{{ $paciente->id }}">
-                                                            <x-primary-button>Activar</x-primary-button>
+                                                            <button type="submit" class="accion">Activar</button>
                                                         </form>
                                                     @endif
                                                 </div>
@@ -127,7 +132,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="px-3 py-6 text-center text-gray-500">
+                                        <td colspan="7" class="py-8 text-center text-slate-500">
                                             <p>No se encontraron pacientes</p>
                                             @can('pacientes.gestionar')
                                                 <x-primary-button type="button" class="mt-3" @click="nuevo()">Registrar paciente</x-primary-button>
@@ -145,11 +150,11 @@
 
             {{-- CU10 pasos 2 a 6 / A2: formulario de registro y modificación --}}
             @can('pacientes.gestionar')
-                <div x-ref="formulario" x-show="abierto" x-cloak class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                    <section class="max-w-4xl space-y-6">
-                        <header>
-                            <h2 class="text-lg font-medium text-gray-900" x-text="form.id ? 'Modificar paciente' : 'Registrar paciente'"></h2>
-                            <p class="mt-1 text-sm text-gray-600" x-show="! form.id">Escriba el documento y pulse «Buscar»: si la persona ya está registrada, se reutilizan sus datos.</p>
+                <div x-ref="formulario" x-show="abierto" x-cloak class="tarjeta lg:col-span-1">
+                    <section class="space-y-6">
+                        <header class="space-y-3">
+                            <h2 class="tarjeta-titulo !mb-0" x-text="form.id ? 'Modificar paciente' : 'Registrar paciente'"></h2>
+                            <p class="alerta-info" x-show="! form.id">Escriba el documento y pulse «Buscar»: si la persona ya está registrada, se reutilizan sus datos.</p>
                         </header>
 
                         {{-- novalidate: la validación la hace validarPaciente() (resources/js/personas.js), en español --}}
@@ -162,7 +167,7 @@
 
                             @include('personas._campos', ['perfil' => 'paciente', 'volvioFormulario' => $volvioFormulario])
 
-                            <div class="flex items-center gap-4">
+                            <div class="flex flex-wrap items-center gap-3">
                                 <x-primary-button x-text="form.id ? 'Guardar cambios' : 'Registrar'">Guardar</x-primary-button>
                                 <x-secondary-button @click="abierto = false">Cancelar</x-secondary-button>
                             </div>
@@ -170,6 +175,7 @@
                     </section>
                 </div>
             @endcan
+            </div>
         </div>
     </div>
 </x-app-layout>

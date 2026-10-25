@@ -3,26 +3,25 @@
      A1: el paciente elige entre sus citas y las de los menores a su cargo. --}}
 @php
     $persona = $paciente->persona;
-    $claseSelect = 'mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm';
+    $claseSelect = 'campo';
     $origenes = ['AUTOSERVICIO' => 'Reserva en línea', 'RECEPCION' => 'Recepción'];
 @endphp
 
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ $opciones->isNotEmpty() ? 'Mis citas' : 'Historial de citas' }}</h2>
+        <x-encabezado ruta="Citas / Historial" :titulo="$opciones->isNotEmpty() ? 'Mis citas' : 'Historial de citas'">
             @can('pacientes.buscar')
-                <a href="{{ route('pacientes.mostrar', $paciente->id) }}" class="text-sm text-indigo-600 hover:underline">Ficha del paciente</a>
+                <a href="{{ route('pacientes.mostrar', $paciente->id) }}" class="font-semibold text-teal-700 hover:underline">Ficha del paciente</a>
             @endcan
-        </div>
+        </x-encabezado>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+    <div class="space-y-6">
+        <div class="space-y-6">
             {{-- CU20 A1: «Mis citas» / «Citas de <menor a mi cargo>» --}}
             @if ($opciones->count() > 1)
-                <form method="GET" action="{{ route('historiales-cita.listar') }}" class="bg-white shadow-sm sm:rounded-lg p-6 max-w-md">
-                    <x-input-label for="paciente_id" value="Ver" />
+                <form method="GET" action="{{ route('historiales-cita.listar') }}" class="tarjeta max-w-md">
+                    <x-input-label for="paciente_id" value="Ver" class="!mb-1" />
                     <select id="paciente_id" name="paciente_id" class="{{ $claseSelect }}" onchange="this.form.submit()">
                         @foreach ($opciones as $opcion)
                             <option value="{{ $opcion->id }}" @selected($opcion->id === $paciente->id)>
@@ -35,33 +34,34 @@
             @endif
 
             {{-- CU20 paso 2: datos del paciente --}}
-            <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                <dl class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
-                    <div><dt class="font-medium text-gray-500">Código</dt><dd>{{ $paciente->codigo }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Paciente</dt><dd>{{ $persona->nombre_completo }}</dd></div>
-                    <div><dt class="font-medium text-gray-500">Edad</dt><dd>{{ $persona->edad }} años</dd></div>
+            <div class="tarjeta">
+                <dl class="grid grid-cols-1 gap-x-10 xl:grid-cols-2">
+                    <div class="dato"><dt>Código</dt><dd>{{ $paciente->codigo }}</dd></div>
+                    <div class="dato"><dt>Paciente</dt><dd>{{ $persona->nombre_completo }}</dd></div>
+                    <div class="dato"><dt>Edad</dt><dd>{{ $persona->edad }} años</dd></div>
                 </dl>
             </div>
 
-            <div class="bg-white shadow-sm sm:rounded-lg p-6 space-y-4">
-                @if ($totalCitas === 0)
-                    {{-- CU20 excepción --}}
-                    <p class="text-sm text-gray-600">El paciente aún no tiene citas registradas.</p>
-                @else
+            @if ($totalCitas === 0)
+                {{-- CU20 excepción --}}
+                <div class="alerta-info">El paciente aún no tiene citas registradas.</div>
+            @else
+                <div class="tarjeta">
+                    <h2 class="tarjeta-titulo">Filtros</h2>
                     {{-- CU20 paso 3: filtros. novalidate: valida validarFiltrosHistorial() (resources/js/citas.js); el servidor valida igual. --}}
-                    <form method="GET" action="{{ route('historiales-cita.listar') }}" novalidate class="grid grid-cols-1 gap-4 sm:grid-cols-5 items-end"
+                    <form method="GET" action="{{ route('historiales-cita.listar') }}" novalidate class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 lg:grid-cols-5"
                           onsubmit="return validarFiltrosHistorial(this)">
                         <input type="hidden" name="paciente_id" value="{{ $paciente->id }}">
                         <div>
                             <x-input-label for="desde" value="Desde" />
-                            <x-text-input id="desde" name="desde" type="date" class="mt-1 block w-full" :value="$filtros['desde']" />
-                            <p class="js-error mt-2 text-sm text-red-600" data-campo="desde" hidden></p>
+                            <x-text-input id="desde" name="desde" type="date" :value="$filtros['desde']" />
+                            <p class="js-error" data-campo="desde" hidden></p>
                             <x-input-error :messages="$errores->get('desde')" class="mt-2" />
                         </div>
                         <div>
                             <x-input-label for="hasta" value="Hasta" />
-                            <x-text-input id="hasta" name="hasta" type="date" class="mt-1 block w-full" :value="$filtros['hasta']" />
-                            <p class="js-error mt-2 text-sm text-red-600" data-campo="hasta" hidden></p>
+                            <x-text-input id="hasta" name="hasta" type="date" :value="$filtros['hasta']" />
+                            <p class="js-error" data-campo="hasta" hidden></p>
                             <x-input-error :messages="$errores->get('hasta')" class="mt-2" />
                         </div>
                         <div>
@@ -86,35 +86,38 @@
                         </div>
                         <div class="flex items-center gap-3">
                             <x-primary-button>Filtrar</x-primary-button>
-                            <a href="{{ route('historiales-cita.listar', ['paciente_id' => $paciente->id]) }}" class="text-sm text-indigo-600 hover:underline">Limpiar</a>
+                            <a href="{{ route('historiales-cita.listar', ['paciente_id' => $paciente->id]) }}" class="btn-secundario">Limpiar</a>
                         </div>
                     </form>
+                </div>
 
+                <div class="tarjeta space-y-4">
+                    <h2 class="tarjeta-titulo">Citas</h2>
                     {{-- CU20 paso 3: totales por estado --}}
-                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                    <div class="flex flex-wrap items-center gap-3 text-sm font-semibold text-marino-900">
                         @foreach ($estados as $valor)
-                            <span class="inline-flex items-center gap-1"><x-estado-cita :estado="$valor" /> {{ $totales[$valor] ?? 0 }}</span>
+                            <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 py-0.5 pe-3 ps-0.5"><x-estado-cita :estado="$valor" /> {{ $totales[$valor] ?? 0 }}</span>
                         @endforeach
                     </div>
 
                     {{-- CU20 paso 2: de la más reciente a la más antigua --}}
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <div class="tabla-contenedor">
+                        <table class="tabla">
                             <thead>
-                                <tr class="text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                    <th class="px-3 py-2">Código</th>
-                                    <th class="px-3 py-2">Fecha y hora</th>
-                                    <th class="px-3 py-2">Médico</th>
-                                    <th class="px-3 py-2">Especialidad</th>
-                                    <th class="px-3 py-2">Estado</th>
-                                    <th class="px-3 py-2">Origen</th>
-                                    <th class="px-3 py-2">Registrada el</th>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Fecha y hora</th>
+                                    <th>Médico</th>
+                                    <th>Especialidad</th>
+                                    <th>Estado</th>
+                                    <th>Origen</th>
+                                    <th>Registrada el</th>
                                     @if ($autoservicio)
-                                        <th class="px-3 py-2">Acciones</th>
+                                        <th class="text-right">Acciones</th>
                                     @endif
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100">
+                            <tbody>
                                 @forelse ($citas as $cita)
                                     @php
                                         $inicio = \Illuminate\Support\Carbon::parse($cita->fecha)->setTimeFromTimeString($cita->hora_inicio);
@@ -122,47 +125,49 @@
                                         $cambiable = $autoservicio && in_array($cita->estado, \App\Models\Cita::ESTADOS_VIGENTES, true) && $inicio->isFuture();
                                     @endphp
                                     <tr class="align-top">
-                                        <td class="px-3 py-3 whitespace-nowrap">
+                                        <td class="whitespace-nowrap">
                                             {{-- CU20 paso 4: trazabilidad --}}
-                                            <a href="{{ route('historiales-cita.mostrar', $cita->id) }}" class="text-indigo-600 hover:underline">{{ $cita->codigo }}</a>
+                                            <a href="{{ route('historiales-cita.mostrar', $cita->id) }}" class="font-semibold text-teal-700 hover:underline">{{ $cita->codigo }}</a>
                                             {{-- Indicadores de reprogramación (RN18) y reemplazo (CU16 A1) --}}
                                             @if ($cita->reprogramaciones > 0)
-                                                <div class="text-xs text-gray-500">Reprogramada {{ $cita->reprogramaciones }} {{ $cita->reprogramaciones == 1 ? 'vez' : 'veces' }}</div>
+                                                <div class="text-xs text-slate-500">Reprogramada {{ $cita->reprogramaciones }} {{ $cita->reprogramaciones == 1 ? 'vez' : 'veces' }}</div>
                                             @endif
                                             @if ($cita->reemplaza_codigo)
-                                                <div class="text-xs text-gray-500">Reemplaza a <a href="{{ route('historiales-cita.mostrar', $cita->cita_reemplazada_id) }}" class="hover:underline">{{ $cita->reemplaza_codigo }}</a></div>
+                                                <div class="text-xs text-slate-500">Reemplaza a <a href="{{ route('historiales-cita.mostrar', $cita->cita_reemplazada_id) }}" class="hover:underline">{{ $cita->reemplaza_codigo }}</a></div>
                                             @endif
                                             @if ($cita->reemplazada_por_codigo)
-                                                <div class="text-xs text-gray-500">Reemplazada por <a href="{{ route('historiales-cita.mostrar', $cita->reemplazada_por_id) }}" class="hover:underline">{{ $cita->reemplazada_por_codigo }}</a></div>
+                                                <div class="text-xs text-slate-500">Reemplazada por <a href="{{ route('historiales-cita.mostrar', $cita->reemplazada_por_id) }}" class="hover:underline">{{ $cita->reemplazada_por_codigo }}</a></div>
                                             @endif
                                         </td>
-                                        <td class="px-3 py-3 whitespace-nowrap">{{ $inicio->format('d/m/Y') }} {{ substr($cita->hora_inicio, 0, 5) }}–{{ substr($cita->hora_fin, 0, 5) }}</td>
-                                        <td class="px-3 py-3">{{ $cita->medico_sexo === 'F' ? 'Dra.' : 'Dr.' }} {{ $cita->medico_nombres }} {{ $cita->medico_apellido }}</td>
-                                        <td class="px-3 py-3">{{ $cita->especialidad }}</td>
-                                        <td class="px-3 py-3"><x-estado-cita :estado="$cita->estado" /></td>
-                                        <td class="px-3 py-3">{{ $origenes[$cita->origen] ?? ($cita->origen ?? '—') }}</td>
-                                        <td class="px-3 py-3 whitespace-nowrap">{{ $cita->fecha_registro?->format('d/m/Y H:i') }}</td>
+                                        <td class="whitespace-nowrap">{{ $inicio->format('d/m/Y') }} {{ substr($cita->hora_inicio, 0, 5) }}–{{ substr($cita->hora_fin, 0, 5) }}</td>
+                                        <td>{{ $cita->medico_sexo === 'F' ? 'Dra.' : 'Dr.' }} {{ $cita->medico_nombres }} {{ $cita->medico_apellido }}</td>
+                                        <td>{{ $cita->especialidad }}</td>
+                                        <td><x-estado-cita :estado="$cita->estado" /></td>
+                                        <td>{{ $origenes[$cita->origen] ?? ($cita->origen ?? '—') }}</td>
+                                        <td class="whitespace-nowrap">{{ $cita->fecha_registro?->format('d/m/Y H:i') }}</td>
                                         @if ($autoservicio)
-                                            <td class="px-3 py-3 whitespace-nowrap">
+                                            <td class="whitespace-nowrap">
                                                 @if ($cambiable)
-                                                    <a href="{{ route('citas.mostrar', [$cita->id, 'accion' => 'reprogramar']) }}" class="text-xs font-semibold text-indigo-600 hover:underline">Reprogramar</a>
-                                                    <a href="{{ route('citas.mostrar', [$cita->id, 'accion' => 'cancelar']) }}" class="ms-2 text-xs font-semibold text-red-700 hover:underline">Cancelar</a>
+                                                    <div class="acciones">
+                                                        <a href="{{ route('citas.mostrar', [$cita->id, 'accion' => 'reprogramar']) }}" class="accion">Reprogramar</a>
+                                                        <a href="{{ route('citas.mostrar', [$cita->id, 'accion' => 'cancelar']) }}" class="accion-peligro">Cancelar</a>
+                                                    </div>
                                                 @else
-                                                    <span class="text-gray-400">—</span>
+                                                    <span class="block text-right text-slate-400">—</span>
                                                 @endif
                                             </td>
                                         @endif
                                     </tr>
                                 @empty
-                                    <tr><td colspan="{{ $autoservicio ? 8 : 7 }}" class="px-3 py-6 text-center text-gray-500">No hay citas con esos filtros.</td></tr>
+                                    <tr><td colspan="{{ $autoservicio ? 8 : 7 }}" class="py-8 text-center text-slate-500">No hay citas con esos filtros.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
 
                     <x-paginacion :paginador="$citas" />
-                @endif
-            </div>
+                </div>
+            @endif
         </div>
     </div>
 </x-app-layout>

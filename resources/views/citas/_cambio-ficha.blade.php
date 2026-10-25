@@ -7,7 +7,7 @@
     $actual = $fechaActual->format('d/m/Y') . ' ' . substr($cita->ficha->hora_inicio, 0, 5) . '–' . substr($cita->ficha->hora_fin, 0, 5)
         . ' con ' . \App\Services\CitaService::tituloMedico($asignacion->medico->persona);
     $volvio = old('accion') === $accion;
-    $claseSelect = 'mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm';
+    $claseSelect = 'campo';
 @endphp
 
 <div x-data="formularioCambioFicha({
@@ -32,9 +32,9 @@
             <input type="hidden" name="medico_id" :value="medicoId">
         @endif
 
-        <p class="text-sm text-gray-700">Ficha actual: <span class="font-medium">{{ $actual }}</span> ({{ $asignacion->especialidad->nombre }})</p>
+        <p class="text-sm text-slate-700">Ficha actual: <span class="font-semibold text-marino-900">{{ $actual }}</span> ({{ $asignacion->especialidad->nombre }})</p>
         {{-- Mejora a: días y horas en que atiende el médico (el actual o el elegido en A1) --}}
-        <p class="text-xs text-gray-600" x-show="atiende" x-text="atiende"></p>
+        <p class="ayuda" x-show="atiende" x-text="atiende"></p>
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             @if ($reasignar)
@@ -47,40 +47,40 @@
                             <option :value="String(m.id)" x-text="m.nombre" :selected="String(m.id) === medicoId"></option>
                         </template>
                     </select>
-                    <p class="mt-1 text-sm text-gray-500" x-show="! medicos.length">No hay otros médicos activos en esta especialidad.</p>
-                    <p class="js-error mt-2 text-sm text-red-600" data-campo="medico_id" hidden></p>
+                    <p class="mt-1 text-sm text-slate-500" x-show="! medicos.length">No hay otros médicos activos en esta especialidad.</p>
+                    <p class="js-error" data-campo="medico_id" hidden></p>
                     @if ($volvio) <x-input-error :messages="$errors->get('medico_id')" class="mt-2" /> @endif
                 </div>
             @endif
             {{-- Paso 3: elegir la fecha --}}
             <div>
                 <x-input-label for="fecha_{{ $accion }}" value="Nueva fecha" />
-                <x-text-input id="fecha_{{ $accion }}" name="fecha" type="date" min="{{ today()->toDateString() }}" class="mt-1 block w-full"
+                <x-text-input id="fecha_{{ $accion }}" name="fecha" type="date" min="{{ today()->toDateString() }}"
                               x-model="fecha" @change="cargarFichas()" />
-                <p class="js-error mt-2 text-sm text-red-600" data-campo="fecha" hidden></p>
+                <p class="js-error" data-campo="fecha" hidden></p>
                 @if ($volvio) <x-input-error :messages="$errors->get('fecha')" class="mt-2" /> @endif
             </div>
         </div>
 
         {{-- Paso 3 / RF06: SOLO los horarios disponibles, como botones de hora --}}
         <div>
-            <p class="text-sm font-medium text-gray-700">Horarios disponibles</p>
-            <p class="mt-1 text-sm text-gray-500" x-show="cargando">Cargando…</p>
-            <p class="mt-1 text-sm text-gray-600" x-show="! cargando && mensajeFichas" x-text="mensajeFichas"></p>
+            <p class="etiqueta">Horarios disponibles</p>
+            <p class="mt-1 text-sm text-slate-500" x-show="cargando">Cargando…</p>
+            <p class="mt-1 text-sm text-slate-600" x-show="! cargando && mensajeFichas" x-text="mensajeFichas"></p>
             {{-- Mejora b: el próximo día disponible (hasta 60 días después) --}}
-            <p class="mt-1 text-sm text-gray-700" x-show="! cargando && proxima" x-cloak>
+            <p class="alerta-info mt-1" x-show="! cargando && proxima" x-cloak>
                 El próximo día disponible es el <span class="font-medium" x-text="proxima?.texto"></span>.
-                <button type="button" class="ms-2 text-indigo-600 font-semibold hover:underline" @click="irAProxima()">Ir a ese día</button>
+                <button type="button" class="ms-2 text-teal-700 font-semibold hover:underline" @click="irAProxima()">Ir a ese día</button>
             </p>
-            <p class="mt-1 text-sm text-gray-500" x-show="! cargando && ! mensajeFichas && ! fichas.length">{{ $reasignar ? 'Elija el médico y la fecha.' : 'Elija la fecha.' }}</p>
+            <p class="mt-1 text-sm text-slate-500" x-show="! cargando && ! mensajeFichas && ! fichas.length">{{ $reasignar ? 'Elija el médico y la fecha.' : 'Elija la fecha.' }}</p>
             <div class="mt-2 flex flex-wrap gap-2">
                 <template x-for="f in fichas" :key="f.id">
                     <button type="button" @click="fichaId = String(f.id); resumen = false"
-                            :class="String(f.id) === String(fichaId) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-green-50'"
-                            class="rounded-md border px-3 py-1 text-sm font-semibold" x-text="f.hora_inicio + '–' + f.hora_fin"></button>
+                            :class="String(f.id) === String(fichaId) ? 'ficha-seleccionada' : 'ficha-disponible'"
+                            class="ficha" x-text="f.hora_inicio + '–' + f.hora_fin"></button>
                 </template>
             </div>
-            <p class="js-error mt-2 text-sm text-red-600" data-campo="ficha_id" hidden></p>
+            <p class="js-error" data-campo="ficha_id" hidden></p>
             @if ($volvio) <x-input-error :messages="$errors->get('ficha_id')" class="mt-2" /> @endif
         </div>
 
@@ -88,8 +88,8 @@
         <div>
             <x-input-label for="motivo_{{ $accion }}" value="Motivo del cambio (opcional)" />
             <textarea id="motivo_{{ $accion }}" name="motivo" rows="2" maxlength="500" x-model="motivo" @input="resumen = false"
-                      class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"></textarea>
-            <p class="js-error mt-2 text-sm text-red-600" data-campo="motivo" hidden></p>
+                      class="campo"></textarea>
+            <p class="js-error" data-campo="motivo" hidden></p>
             @if ($volvio) <x-input-error :messages="$errors->get('motivo')" class="mt-2" /> @endif
         </div>
 
@@ -98,14 +98,14 @@
         </div>
 
         {{-- Paso 4: resumen «ficha actual → nueva» antes de confirmar --}}
-        <div class="rounded-md border-2 border-indigo-200 p-4 space-y-3" x-show="resumen" x-cloak>
-            <p class="text-sm"><span class="font-medium">{{ $actual }}</span> → <span class="font-medium" x-text="textoNueva"></span></p>
+        <div class="space-y-3 rounded-xl border border-teal-300 bg-teal-50 p-4" x-show="resumen" x-cloak>
+            <p class="text-sm text-marino-900"><span class="font-semibold">{{ $actual }}</span> → <span class="font-semibold" x-text="textoNueva"></span></p>
             @if ($reasignar)
-                <p class="text-sm text-gray-600">La cita {{ $cita->codigo }} quedará cancelada y se registrará una cita nueva que la reemplaza.</p>
+                <p class="text-sm text-slate-600">La cita {{ $cita->codigo }} quedará cancelada y se registrará una cita nueva que la reemplaza.</p>
             @else
-                <p class="text-sm text-gray-600">La cita volverá a quedar PROGRAMADA y deberá confirmarse otra vez.</p>
+                <p class="text-sm text-slate-600">La cita volverá a quedar PROGRAMADA y deberá confirmarse otra vez.</p>
             @endif
-            <div class="flex items-center gap-4">
+            <div class="flex flex-wrap items-center gap-3">
                 <x-primary-button>{{ $reasignar ? 'Confirmar la reasignación' : 'Confirmar la reprogramación' }}</x-primary-button>
                 <x-secondary-button @click="resumen = false">Volver a editar</x-secondary-button>
             </div>

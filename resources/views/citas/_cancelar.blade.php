@@ -13,8 +13,8 @@
     <div>
         <x-input-label for="motivo_cancelacion_{{ $cita->id }}" value="Motivo de cancelación" />
         <textarea id="motivo_cancelacion_{{ $cita->id }}" name="motivo_cancelacion" rows="2" maxlength="500" required
-                  class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">{{ $volvio ? old('motivo_cancelacion') : '' }}</textarea>
-        <p class="js-error mt-2 text-sm text-red-600" data-campo="motivo_cancelacion" hidden></p>
+                  class="campo">{{ $volvio ? old('motivo_cancelacion') : '' }}</textarea>
+        <p class="js-error" data-campo="motivo_cancelacion" hidden></p>
         @if ($volvio)
             <x-input-error :messages="$errors->get('motivo_cancelacion')" class="mt-2" />
         @endif

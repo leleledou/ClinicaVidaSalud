@@ -1,22 +1,20 @@
 {{-- CU03 Cambiar contraseña (basada en el formulario de contraseña del perfil de Breeze). --}}
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Cambiar contraseña
-        </h2>
+        <x-encabezado ruta="Mi cuenta" titulo="Cambiar contraseña" />
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
-            <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                <div class="max-w-xl">
+    <div class="space-y-6">
+        <div class="space-y-6">
+            <div class="tarjeta max-w-2xl">
+                <div>
                     <section>
                         <header>
-                            <h2 class="text-lg font-medium text-gray-900">
+                            <h2 class="tarjeta-titulo">
                                 Cambiar contraseña
                             </h2>
 
-                            <p class="mt-1 text-sm text-gray-600">
+                            <p class="alerta-info">
                                 Al guardar, se cerrarán sus sesiones abiertas en otros equipos.
                             </p>
                         </header>
@@ -28,28 +26,28 @@
                             <!-- Contraseña actual -->
                             <div>
                                 <x-input-label for="password_actual" value="Contraseña actual" />
-                                <x-text-input id="password_actual" name="password_actual" type="password" class="mt-1 block w-full" autocomplete="current-password" required />
+                                <x-text-input id="password_actual" name="password_actual" type="password" autocomplete="current-password" required />
                                 <x-input-error :messages="$errors->get('password_actual')" class="mt-2" />
                             </div>
 
                             <!-- Nueva contraseña -->
                             <div>
                                 <x-input-label for="password" value="Nueva contraseña" />
-                                <x-text-input id="password" name="password" type="password" class="mt-1 block w-full" autocomplete="new-password" required />
+                                <x-text-input id="password" name="password" type="password" autocomplete="new-password" required />
                                 <x-input-error :messages="$errors->get('password')" class="mt-2" />
                             </div>
 
                             <!-- Confirmación -->
                             <div>
                                 <x-input-label for="password_confirmation" value="Confirmar nueva contraseña" />
-                                <x-text-input id="password_confirmation" name="password_confirmation" type="password" class="mt-1 block w-full" autocomplete="new-password" required />
+                                <x-text-input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" required />
                                 <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
                             </div>
 
                             {{-- CU03 paso 5: requisitos de la política; el script los marca mientras se escribe. --}}
                             <div>
-                                <p class="text-sm font-medium text-gray-700">La nueva contraseña debe cumplir:</p>
-                                <ul id="requisitos" class="mt-2 space-y-1 text-sm">
+                                <p class="etiqueta">La nueva contraseña debe cumplir:</p>
+                                <ul id="requisitos" class="mt-2 space-y-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
                                     <li data-requisito="largo">Al menos 8 caracteres</li>
                                     <li data-requisito="mayuscula">Al menos una letra mayúscula</li>
                                     <li data-requisito="minuscula">Al menos una letra minúscula</li>
