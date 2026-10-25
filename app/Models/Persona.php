@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 class Persona extends Model
 {
@@ -181,6 +182,13 @@ class Persona extends Model
     protected function nombreCompleto(): Attribute
     {
         return Attribute::get(fn () => trim($this->nombres . " " . $this->apellido_paterno . " " . ($this->apellido_materno ?? "")));
+    }
+
+    // RN15 / R-EDAD: años cumplidos en una fecha (por ejemplo, la de la cita).
+    public function edadEn(Carbon $fecha): int
+    {
+        // diff()->y: años completos entre el nacimiento y la fecha.
+        return $this->fecha_nacimiento->diff($fecha->copy()->startOfDay())->y;
     }
 
     // Años cumplidos a hoy.

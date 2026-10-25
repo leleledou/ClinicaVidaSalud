@@ -23,4 +23,19 @@ class Notificacion extends Model
         "estado",
         "intentos"
     ];
+
+    protected function casts(): array
+    {
+        return [
+            "programada_para" => "datetime",
+            "enviada_en" => "datetime",
+            "leida_en" => "datetime"
+        ];
+    }
+
+    // RECIBE: la persona destinataria (tenga o no cuenta).
+    public function persona()
+    {
+        return $this->belongsTo(Persona::class, "persona_id");
+    }
 }

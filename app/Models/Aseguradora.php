@@ -14,4 +14,9 @@ class Aseguradora extends Model
         "telefono",
         "estado"
     ];
+
+    public function seguros()
+    {
+        return $this->hasMany(PacienteSeguro::class, "aseguradora_id");
+    }
 }

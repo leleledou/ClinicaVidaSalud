@@ -32,30 +32,8 @@ class PacienteController extends Controller
     {
         $texto = trim((string) $request->query("q", ""));
 
-        $consulta = Paciente::with("persona")
-            ->join("personas", "personas.id", "=", "pacientes.persona_id")
-            ->select("pacientes.*");
-
-        if ($texto !== "") {
-            // CU11 paso 2: el documento se normaliza (mayúsculas sin espacios, puntos ni guiones) y
-            // los nombres con fn_normalizar_texto (sin tildes ni mayúsculas).
-            $documento = Persona::normalizarDocumento($texto);
-            $patron = "%" . $this->escaparLike($texto) . "%";
-
-            // CU11 paso 3: código, documento (normalizado en los dos lados) y nombre completo, con parámetros.
-            $consulta->where(function ($condicion) use ($patron, $documento) {
-                $condicion->whereRaw("upper(pacientes.codigo) LIKE upper(?)", [$patron])
-                    ->orWhereRaw("fn_normalizar_texto(personas.nombres || ' ' || personas.apellido_paterno || ' ' || coalesce(personas.apellido_materno, '')) LIKE fn_normalizar_texto(?)", [$patron]);
-                if ($documento !== null) {
-                    $condicion->orWhereRaw("regexp_replace(upper(personas.numero_documento), '[\\s.\\-]', '', 'g') LIKE ?", ["%" . $this->escaparLike($documento) . "%"]);
-                }
-            })
-                ->orderBy("personas.apellido_paterno")
-                ->orderBy("personas.nombres");
-        } else {
-            // Sin texto: todos, los más recientes primero.
-            $consulta->orderByDesc("pacientes.fecha_registro")->orderByDesc("pacientes.id");
-        }
+        // CU11 pasos 2-3: código, documento normalizado o nombre (búsqueda compartida con CU15 en Paciente::buscar).
+        $consulta = Paciente::buscar($texto);
 
         // CU11 A1: un médico solo ve a los pacientes con los que tiene o tuvo alguna cita.
         if ($medicoId = $this->medicoDelUsuario($request)) {
@@ -307,12 +285,6 @@ class PacienteController extends Controller
     private function edadMayoria(): int
     {
         return (int) ConfiguracionSistema::find("edad_mayoria")->valor;
-    }
-
-    // Escapa los comodines de LIKE que escriba el usuario.
-    private function escaparLike(string $texto): string
-    {
-        return str_replace(["\\", "%", "_"], ["\\\\", "\\%", "\\_"], $texto);
     }
 
     // Regla del id que llega oculto en el formulario.

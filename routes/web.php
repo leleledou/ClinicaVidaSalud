@@ -53,6 +53,12 @@ Route::middleware("guest")->group(function(){
     });
 });
 
+// CU14 Consultar disponibilidad de fichas: PÚBLICA, con o sin sesión (el actor incluye al Visitante).
+// Solo consulta: las fichas se generan en CU09.
+Route::prefix("fichas")->controller(FichaController::class)->group(function(){
+    Route::get('/','index')->name("fichas.disponibilidad");
+});
+
 // CU12 paso 8 y A2: verificar el correo y reenviar el enlace funcionan con o sin sesión (el
 // paciente que ya inició sesión llega aquí desde el aviso del panel). El enlace de verificación
 // es una URL firmada temporal: la firma se revisa en el controlador para mostrar el mensaje en español.
@@ -250,20 +256,19 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/{id}','show')->name("bloqueos.mostrar");
     });
 
-    Route::prefix("fichas")->controller(FichaController::class)->group(function(){
-        Route::get('/','index')->name("fichas.listar");
-        Route::post('/','store')->name("fichas.guardar");
-        Route::post('/update','update')->name("fichas.modificar");
-        Route::post('/delete','delete')->name("fichas.eliminar");
-        Route::get('/{id}','show')->name("fichas.mostrar");
-    });
 
+    // CU15 Programar cita (citas.programar = recepción; citas.autoservicio = paciente, A1). La
+    // autorización se revisa en el controlador. /crear, /fichas-disponibles y /buscar-pacientes van
+    // antes de /{id}, que además solo acepta números. update y delete: CU16 y CU17 (pendientes).
     Route::prefix("citas")->controller(CitaController::class)->group(function(){
         Route::get('/','index')->name("citas.listar");
+        Route::get('/crear','create')->name("citas.crear");
+        Route::get('/fichas-disponibles','fichasDisponibles')->name("citas.fichas");
+        Route::get('/buscar-pacientes','buscarPacientes')->name("citas.pacientes");
         Route::post('/','store')->name("citas.guardar");
         Route::post('/update','update')->name("citas.modificar");
         Route::post('/delete','delete')->name("citas.eliminar");
-        Route::get('/{id}','show')->name("citas.mostrar");
+        Route::get('/{id}','show')->whereNumber('id')->name("citas.mostrar");
     });
 
     Route::prefix("historiales-cita")->controller(HistorialCitaController::class)->group(function(){

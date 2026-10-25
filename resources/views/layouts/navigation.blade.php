@@ -26,6 +26,29 @@
                         Panel
                     </x-nav-link>
 
+                    {{-- CU14 Consultar disponibilidad de fichas (pública) --}}
+                    <x-nav-link :href="route('fichas.disponibilidad')" :active="request()->routeIs('fichas.*')">
+                        Médicos y horarios
+                    </x-nav-link>
+
+                    {{-- CU15 Programar cita (recepción) / A1 Reservar cita (paciente) --}}
+                    @can('citas.programar')
+                        <x-nav-link :href="route('citas.crear')" :active="request()->routeIs('citas.crear')">
+                            Programar cita
+                        </x-nav-link>
+                    @elsecan('citas.autoservicio')
+                        <x-nav-link :href="route('citas.crear')" :active="request()->routeIs('citas.crear')">
+                            Reservar cita
+                        </x-nav-link>
+                    @endcan
+
+                    {{-- Citas del día --}}
+                    @canany(['citas.programar', 'agenda.consultar'])
+                        <x-nav-link :href="route('citas.listar')" :active="request()->routeIs('citas.listar', 'citas.mostrar')">
+                            Citas
+                        </x-nav-link>
+                    @endcanany
+
                     {{-- CU06 Gestionar especialidades --}}
                     @can('especialidades.gestionar')
                         <x-nav-link :href="route('especialidades.listar')" :active="request()->routeIs('especialidades.*')">
@@ -143,6 +166,26 @@
             <x-responsive-nav-link :href="route('panel')" :active="request()->routeIs('panel')">
                 Panel
             </x-responsive-nav-link>
+
+            <x-responsive-nav-link :href="route('fichas.disponibilidad')" :active="request()->routeIs('fichas.*')">
+                Médicos y horarios
+            </x-responsive-nav-link>
+
+            @can('citas.programar')
+                <x-responsive-nav-link :href="route('citas.crear')" :active="request()->routeIs('citas.crear')">
+                    Programar cita
+                </x-responsive-nav-link>
+            @elsecan('citas.autoservicio')
+                <x-responsive-nav-link :href="route('citas.crear')" :active="request()->routeIs('citas.crear')">
+                    Reservar cita
+                </x-responsive-nav-link>
+            @endcan
+
+            @canany(['citas.programar', 'agenda.consultar'])
+                <x-responsive-nav-link :href="route('citas.listar')" :active="request()->routeIs('citas.listar', 'citas.mostrar')">
+                    Citas
+                </x-responsive-nav-link>
+            @endcanany
 
             @can('especialidades.gestionar')
                 <x-responsive-nav-link :href="route('especialidades.listar')" :active="request()->routeIs('especialidades.*')">

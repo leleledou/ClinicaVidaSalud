@@ -20,4 +20,32 @@ class HistorialCita extends Model
         "motivo",
         "fecha_hora"
     ];
+
+    protected function casts(): array
+    {
+        return [
+            "fecha_hora" => "datetime"
+        ];
+    }
+
+    public function cita()
+    {
+        return $this->belongsTo(Cita::class, "cita_id");
+    }
+
+    // Nulo cuando el cambio lo hizo el SISTEMA (ck_historiales_usuario_sistema).
+    public function usuario()
+    {
+        return $this->belongsTo(Usuario::class, "usuario_realiza_id");
+    }
+
+    public function fichaAnterior()
+    {
+        return $this->belongsTo(Ficha::class, "ficha_anterior_id");
+    }
+
+    public function fichaNueva()
+    {
+        return $this->belongsTo(Ficha::class, "ficha_nueva_id");
+    }
 }

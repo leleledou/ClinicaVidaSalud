@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -52,6 +53,41 @@ class Paciente extends Model
         return $this->hasMany(VinculoPaciente::class, "paciente_id");
     }
 
+    // RN20: seguros médicos del paciente.
+    public function seguros()
+    {
+        return $this->hasMany(PacienteSeguro::class, "paciente_id");
+    }
+
+    // CU11 pasos 2-3 (y CU15 paso 1): pacientes por documento, código PAC- o parte del nombre o
+    // apellido, con parámetros. El documento se normaliza en los dos lados y los nombres con
+    // fn_normalizar_texto (sin tildes ni mayúsculas). Sin texto: los más recientes primero.
+    public static function buscar(string $texto): Builder
+    {
+        $consulta = self::with("persona")
+            ->join("personas", "personas.id", "=", "pacientes.persona_id")
+            ->select("pacientes.*");
+
+        if ($texto === "") {
+            return $consulta->orderByDesc("pacientes.fecha_registro")->orderByDesc("pacientes.id");
+        }
+
+        // Escapa los comodines de LIKE que escriba el usuario.
+        $escapar = fn (string $valor) => str_replace(["\\", "%", "_"], ["\\\\", "\\%", "\\_"], $valor);
+        $documento = Persona::normalizarDocumento($texto);
+        $patron = "%" . $escapar($texto) . "%";
+
+        return $consulta->where(function ($condicion) use ($patron, $documento, $escapar) {
+            $condicion->whereRaw("upper(pacientes.codigo) LIKE upper(?)", [$patron])
+                ->orWhereRaw("fn_normalizar_texto(personas.nombres || ' ' || personas.apellido_paterno || ' ' || coalesce(personas.apellido_materno, '')) LIKE fn_normalizar_texto(?)", [$patron]);
+            if ($documento !== null) {
+                $condicion->orWhereRaw("regexp_replace(upper(personas.numero_documento), '[\\s.\\-]', '', 'g') LIKE ?", ["%" . $escapar($documento) . "%"]);
+            }
+        })
+            ->orderBy("personas.apellido_paterno")
+            ->orderBy("personas.nombres");
+    }
+
     // CU10 paso 7 / CU12 paso 6: registra el perfil de paciente con su código PAC- y su historia
     // clínica abierta hoy. $recepcionistaId = null es autorregistro. Debe llamarse dentro de una
     // transacción (el candado del código dura hasta el final de la transacción).
@@ -86,10 +122,7 @@ class Paciente extends Model
     // CU13 / CU15: true si en esa fecha (hoy por defecto) el paciente no llega a la edad de mayoría.
     public function esMenor(?Carbon $fecha = null): bool
     {
-        $fecha ??= today();
-
-        // diff()->y: años cumplidos completos entre el nacimiento y la fecha.
-        return $this->persona->fecha_nacimiento->diff($fecha)->y < ConfiguracionSistema::entero("edad_mayoria");
+        return $this->persona->edadEn($fecha ?? today()) < ConfiguracionSistema::entero("edad_mayoria");
     }
 
     // CU13 / RN16: tiene al menos un responsable legal ACTIVO y verificado.

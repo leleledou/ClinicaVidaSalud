@@ -26,6 +26,15 @@
                 {{ $paciente->codigo }} · {{ $persona->nombre_completo }}
             </h2>
             <div class="flex items-center gap-4">
+                {{-- CU15 paso 1: programar una cita con este paciente ya elegido --}}
+                @can('citas.programar')
+                    @if ($paciente->estado === 'ACTIVO')
+                        <a href="{{ route('citas.crear', ['paciente_id' => $paciente->id]) }}"
+                           class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700">
+                            Programar cita
+                        </a>
+                    @endif
+                @endcan
                 {{-- CU13: vínculos del paciente (recepción con vinculos.gestionar o vinculos.verificar) --}}
                 @canany(['vinculos.gestionar', 'vinculos.verificar'])
                     <a href="{{ route('vinculos-paciente.listar', ['paciente_id' => $paciente->id]) }}"

@@ -21,9 +21,19 @@
                     <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
                 </a>
                 <span class="mt-2 text-2xl font-semibold text-gray-800">Clínica Vida Salud</span>
+                {{-- CU14: consulta pública de médicos y horarios; CU01: iniciar sesión --}}
+                <nav class="mt-2 flex gap-4 text-sm">
+                    <a href="{{ route('fichas.disponibilidad') }}" class="text-indigo-600 hover:underline">Médicos y horarios</a>
+                    <a href="{{ route('login') }}" class="text-indigo-600 hover:underline">Iniciar sesión</a>
+                </nav>
             </div>
 
-            <div @class(['w-full mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-lg', 'sm:max-w-3xl mb-6' => $ancho, 'sm:max-w-md' => ! $ancho])>
+            <div @class([
+                'w-full mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-lg',
+                'sm:max-w-7xl mb-6' => $completo,
+                'sm:max-w-3xl mb-6' => $ancho && ! $completo,
+                'sm:max-w-md' => ! $ancho && ! $completo,
+            ])>
                 {{ $slot }}
             </div>
         </div>
