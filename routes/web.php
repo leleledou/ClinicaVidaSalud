@@ -131,12 +131,14 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/{id}','show')->name("usuarios.mostrar");
     });
 
-    Route::prefix("bitacora")->controller(BitacoraController::class)->group(function(){
+    // CU21 Consultar bitácora (RF-06). Solo lectura: bitacoras es de solo inserción.
+    Route::prefix("bitacora")->middleware("can:bitacora.consultar")->controller(BitacoraController::class)->group(function(){
         Route::get('/','index')->name("bitacora.listar");
-        Route::get('/{id}','show')->name("bitacora.mostrar");
+        Route::get('/{id}','show')->whereNumber('id')->name("bitacora.mostrar");
     });
 
-    Route::prefix("configuraciones")->controller(ConfiguracionSistemaController::class)->group(function(){
+    // CU22 Gestionar configuración del sistema (RF-07). Solo se modifica el valor: las claves las usa el código.
+    Route::prefix("configuraciones")->middleware("can:configuracion.gestionar")->controller(ConfiguracionSistemaController::class)->group(function(){
         Route::get('/','index')->name("configuraciones.listar");
         Route::post('/update','update')->name("configuraciones.modificar");
         Route::get('/{clave}','show')->name("configuraciones.mostrar");

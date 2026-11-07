@@ -140,7 +140,7 @@
         @endcanany
 
         {{-- SEGURIDAD --}}
-        @canany(['usuarios.gestionar', 'roles.gestionar'])
+        @canany(['usuarios.gestionar', 'roles.gestionar', 'bitacora.consultar', 'configuracion.gestionar'])
             <x-menu-seccion>Seguridad</x-menu-seccion>
 
             {{-- CU04 Gestionar usuarios --}}
@@ -154,6 +154,20 @@
             @can('roles.gestionar')
                 <x-menu-enlace :href="route('roles.listar')" :active="request()->routeIs('roles.*')">
                     Roles y permisos
+                </x-menu-enlace>
+            @endcan
+
+            {{-- CU21 Consultar bitácora --}}
+            @can('bitacora.consultar')
+                <x-menu-enlace :href="route('bitacora.listar')" :active="request()->routeIs('bitacora.*')">
+                    Bitácora
+                </x-menu-enlace>
+            @endcan
+
+            {{-- CU22 Gestionar configuración del sistema --}}
+            @can('configuracion.gestionar')
+                <x-menu-enlace :href="route('configuraciones.listar')" :active="request()->routeIs('configuraciones.*')">
+                    Configuración del sistema
                 </x-menu-enlace>
             @endcan
         @endcanany
