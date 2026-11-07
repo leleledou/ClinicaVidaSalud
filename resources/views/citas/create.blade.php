@@ -1,12 +1,19 @@
-{{-- CU15 Programar cita (recepción) y A1 Reservar cita (paciente): pasos 1 a 5 en una sola página con Alpine. --}}
+{{-- CU15 Programar cita (recepción) y A1 Reservar cita (paciente): pasos 1 a 5 en una sola página con Alpine.
+     CU26 Autorizar excepción de edad (RF-28): el mismo formulario en modo excepción (?excepcion=1). --}}
 @php
     $esAutoservicio = $modo === \App\Services\CitaService::ORIGEN_AUTOSERVICIO;
+    $esExcepcion = $modo === \App\Http\Controllers\CitaController::MODO_EXCEPCION;
     $claseSelect = 'campo';
+    [$ruta, $titulo] = match (true) {
+        $esAutoservicio => ['Citas / Reservar', 'Reservar cita'],
+        $esExcepcion => ['Citas / Excepción de edad', 'Programar con excepción de edad'],
+        default => ['Citas / Programar', 'Programar cita'],
+    };
 @endphp
 
 <x-app-layout>
     <x-slot name="header">
-        <x-encabezado :ruta="$esAutoservicio ? 'Citas / Reservar' : 'Citas / Programar'" :titulo="$esAutoservicio ? 'Reservar cita' : 'Programar cita'">
+        <x-encabezado :ruta="$ruta" :titulo="$titulo">
             <a href="{{ route('fichas.disponibilidad') }}" class="font-semibold text-teal-700 hover:underline">Ver médicos y horarios</a>
         </x-encabezado>
     </x-slot>
@@ -31,6 +38,15 @@
                 </div>
             @endunless
 
+            {{-- CU26 paso 1: aviso del modo excepción --}}
+            @if ($esExcepcion)
+                <div class="alerta-aviso">
+                    <p class="font-semibold">Programar con excepción de edad</p>
+                    <p class="mt-1">Solo para un paciente fuera del rango de edad de la especialidad. El sexo de la especialidad se sigue
+                        validando. La autorización y la justificación quedan registradas a su nombre (RF-28).</p>
+                </div>
+            @endif
+
             {{-- CU15 paso 8: regla de negocio que impidió guardar (RN03–RN20, RF-22) --}}
             @if ($errors->has('cita'))
                 <div class="alerta-error font-medium">{{ $errors->first('cita') }}</div>
@@ -51,6 +67,10 @@
                 <input type="hidden" name="especialidad_id" :value="especialidadId">
                 <input type="hidden" name="medico_id" :value="medicoId">
                 <input type="hidden" name="ficha_id" :value="fichaId">
+                @if ($esExcepcion)
+                    {{-- CU26: el envío sigue en modo excepción --}}
+                    <input type="hidden" name="excepcion" value="1">
+                @endif
 
                 <div class="space-y-6 lg:col-span-2">
                     {{-- Pasos 1 y 2: paciente, especialidad, médico y fecha --}}
@@ -102,13 +122,19 @@
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3" x-show="paciente" x-cloak>
                             <div>
                                 <x-input-label for="especialidad" value="Especialidad" />
-                                {{-- RN15: solo las que admiten la edad y el sexo del paciente --}}
+                                {{-- RN15: solo las que admiten la edad y el sexo del paciente.
+                                     CU26 paso 2: en modo excepción, todas, marcando las que están fuera del rango de edad. --}}
                                 <select id="especialidad" class="{{ $claseSelect }}" x-model="especialidadId" @change="cambiarEspecialidad()">
                                     <option value="">Seleccione…</option>
                                     <template x-for="e in especialidadesPermitidas" :key="e.id">
-                                        <option :value="String(e.id)" x-text="e.nombre" :selected="String(e.id) === especialidadId"></option>
+                                        <option :value="String(e.id)" x-text="textoEspecialidad(e)" :selected="String(e.id) === especialidadId"></option>
                                     </template>
                                 </select>
+                                @if ($esExcepcion)
+                                    <p class="ayuda" x-show="especialidad && ! fueraDeRango(especialidad)" x-cloak>
+                                        El paciente está dentro del rango de edad: no requiere excepción.
+                                    </p>
+                                @endif
                                 <p class="js-error" data-campo="especialidad_id" hidden></p>
                                 <x-input-error :messages="$errors->get('especialidad_id')" class="mt-2" />
                             </div>
@@ -190,6 +216,18 @@
                             <x-input-error :messages="$errors->get('codigo_autorizacion_seguro')" class="mt-2" />
                         </div>
 
+                        {{-- CU26 paso 4: justificación obligatoria (al menos 10 caracteres) --}}
+                        @if ($esExcepcion)
+                            <div>
+                                <x-input-label for="justificacion_excepcion" value="Justificación de la excepción" />
+                                <textarea id="justificacion_excepcion" name="justificacion_excepcion" rows="3" maxlength="1000"
+                                          x-model="justificacion" @input="resumen = false" class="campo"></textarea>
+                                <p class="ayuda"><span x-text="justificacion.length"></span>/1000 (mínimo 10)</p>
+                                <p class="js-error" data-campo="justificacion_excepcion" hidden></p>
+                                <x-input-error :messages="$errors->get('justificacion_excepcion')" class="mt-2" />
+                            </div>
+                        @endif
+
                         <div x-show="! resumen">
                             <x-primary-button type="button" class="w-full" @click="revisar()">Revisar la cita</x-primary-button>
                         </div>
@@ -208,6 +246,11 @@
                             <div class="dato"><dt>Consultorio</dt><dd x-text="ficha && ficha.consultorio ? ficha.consultorio + ' (' + ficha.ubicacion + ')' : '—'"></dd></div>
                             <div class="dato"><dt>Seguro</dt><dd x-text="seguro ? seguro.texto + (codigoAutorizacion ? ' · autorización ' + codigoAutorizacion : '') : 'Sin seguro'"></dd></div>
                             <div class="dato"><dt>Motivo</dt><dd x-text="motivo || '—'"></dd></div>
+                            {{-- CU26 paso 5: la excepción y su justificación en el resumen --}}
+                            @if ($esExcepcion)
+                                <div class="dato"><dt>Excepción de edad</dt><dd x-text="especialidad ? especialidad.nombre + ' atiende ' + rangoEspecialidad(especialidad) + '; el paciente tiene ' + paciente?.edad + ' años' : ''"></dd></div>
+                                <div class="dato"><dt>Justificación</dt><dd x-text="justificacion"></dd></div>
+                            @endif
                         </dl>
 
                         <div class="flex flex-wrap items-center gap-3">

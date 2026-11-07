@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\ReglaNegocioException;
+use App\Models\Administrador;
 use App\Models\Bitacora;
 use App\Models\BloqueoAgenda;
 use App\Models\Cita;
@@ -55,6 +56,60 @@ class CitaService
     }
 
     /**
+     * CU26 pasos 6 a 9 (RF-28): programa una cita con excepción de edad autorizada por un administrador.
+     * Las mismas reglas que programar() en modo recepción (RN04–RN07, RN13, RN16, RN17, RN20) salvo la
+     * EDAD de RN15; el sexo se sigue validando. Origen RECEPCION, canal WEB.
+     */
+    public function programarConExcepcion(array $datos, string $justificacion, Usuario $usuario, Administrador $administrador): Cita
+    {
+        // CU26 paso 1 / RN25: citas.autorizar_excepcion y perfil de administrador ACTIVO del propio usuario.
+        if (! $usuario->tienePermiso("citas.autorizar_excepcion") || $administrador->estado !== "ACTIVO" || $administrador->persona_id !== $usuario->persona_id) {
+            throw new AuthorizationException("No puede autorizar excepciones de edad.");
+        }
+
+        // CU26 paso 6: justificación obligatoria de al menos 10 caracteres.
+        $justificacion = $this->texto($justificacion);
+        if ($justificacion === null || mb_strlen($justificacion) < 10) {
+            throw new ReglaNegocioException("La justificación de la excepción es obligatoria (al menos 10 caracteres).");
+        }
+
+        return $this->enTransaccion(function () use ($datos, $justificacion, $usuario, $administrador) {
+            $ficha = $this->bloquearFicha((int) $datos["ficha_id"]);
+            $paciente = Paciente::with("persona")->find($datos["paciente_id"]);
+            if ($paciente === null) {
+                throw new ReglaNegocioException("El paciente elegido no existe.");
+            }
+            $especialidad = $ficha->horario->medicoEspecialidad->especialidad;
+            $edad = $paciente->persona->edadEn($ficha->inicio());
+
+            // CU26 A3: el sexo de la especialidad no se exceptúa (se revisa primero).
+            if ($mensaje = $especialidad->restriccionSexo($paciente->persona->sexo)) {
+                throw new ReglaNegocioException($mensaje);
+            }
+            // CU26 paso 7 / A2: la excepción solo procede si el paciente está FUERA del rango de edad en la fecha de la cita.
+            if ($especialidad->restriccionEdad($edad) === null) {
+                throw new ReglaNegocioException("El paciente está dentro del rango de edad de la especialidad: no requiere excepción. Prográmela normalmente.");
+            }
+
+            // CU26 paso 8: las demás reglas de CU15 (sexo incluido) y la cita con la autorización.
+            $cita = $this->registrarCita($datos, $usuario, self::ORIGEN_RECEPCION, null, [
+                "administrador_autoriza_id" => $administrador->id,
+                "justificacion_excepcion" => $justificacion,
+            ]);
+
+            // CU26 paso 9: bitácora con la edad, el rango de la especialidad y la justificación.
+            Bitacora::registrar("PROGRAMAR_CITA_EXCEPCION", "citas", $usuario->id, true, "citas", $cita->id, "WEB", null, $this->foto($cita) + [
+                "edad_paciente" => $edad,
+                "rango_especialidad" => $especialidad->textoRangoEdad(),
+                "administrador_autoriza" => $administrador->codigo,
+                "justificacion_excepcion" => $justificacion,
+            ]);
+
+            return $cita;
+        });
+    }
+
+    /**
      * CU16 pasos 5 a 7 (RF-23): cambia la cita a otra ficha del MISMO médico y especialidad.
      * $autoservicio: el paciente o su responsable legal desde la web (A2).
      */
@@ -94,7 +149,8 @@ class CitaService
             $this->validarFicha($ficha, $inicio);
 
             // h) RN15–RN17: el paciente en la nueva fecha, sin contar esta misma cita en el cruce.
-            $this->validarPacienteEnLaFecha($cita->paciente, $ficha, $inicio, $cita->id);
+            // CU26 paso 8: con excepción de edad autorizada, la edad no se vuelve a aplicar (el sexo sí).
+            $this->validarPacienteEnLaFecha($cita->paciente, $ficha, $inicio, $cita->id, $cita->tieneExcepcion());
 
             // i) CU16 paso 6: nueva ficha y vuelve a PROGRAMADA (debe confirmarse otra vez).
             $antes = $this->foto($cita);
@@ -160,13 +216,17 @@ class CitaService
             $this->anular($original, "Reasignada a otro médico" . ($this->texto($motivo) ? ": " . $this->texto($motivo) : ""), $usuario);
 
             // d) Cita nueva con las mismas reglas que CU15 (mismo paciente, motivo y seguro), origen RECEPCION.
+            // CU26 paso 8: copia la excepción de edad de la original (la edad no se vuelve a aplicar).
             $nueva = $this->registrarCita([
                 "paciente_id" => $original->paciente_id,
                 "ficha_id" => $ficha->id,
                 "motivo" => $original->motivo,
                 "seguro_paciente_id" => $original->seguro_paciente_id,
                 "codigo_autorizacion_seguro" => $original->codigo_autorizacion_seguro,
-            ], $usuario, self::ORIGEN_RECEPCION, $original);
+            ], $usuario, self::ORIGEN_RECEPCION, $original, $original->tieneExcepcion() ? [
+                "administrador_autoriza_id" => $original->administrador_autoriza_id,
+                "justificacion_excepcion" => $original->justificacion_excepcion,
+            ] : null);
 
             Bitacora::registrar("REASIGNAR_CITA", "citas", $usuario->id, true, "citas", $nueva->id, "WEB", $antes,
                 $this->foto($nueva) + ["reemplaza_a" => $original->codigo, "motivo_cambio" => $this->texto($motivo)]);
@@ -307,31 +367,66 @@ class CitaService
             }
 
             // CU18 paso 5: estado nuevo, historial y bitácora.
-            $antes = $this->foto($cita);
-            $cita->update(["estado" => $nuevo]);
-
-            HistorialCita::create([
-                "cita_id" => $cita->id,
-                "usuario_realiza_id" => $usuario->id,
-                "estado_anterior" => $estadoAnterior,
-                "estado_nuevo" => $nuevo,
-                "canal" => "WEB",
-                "motivo" => match ($nuevo) {
-                    "CONFIRMADA" => "Asistencia confirmada",
-                    "ATENDIDA" => "Paciente atendido",
-                    default => "El paciente no se presentó",
-                },
-            ]);
-
-            // CU18 paso 5: la cita ya ocurrió (o no): sus recordatorios pendientes se anulan.
-            if (in_array($nuevo, ["ATENDIDA", "INASISTENCIA"], true)) {
-                $this->cancelarAvisosPendientes($cita);
-            }
-
-            Bitacora::registrar("CAMBIO_ESTADO_CITA", "citas", $usuario->id, true, "citas", $cita->id, "WEB", $antes, $this->foto($cita));
+            $this->registrarCambioEstado($cita, $nuevo, $usuario, "WEB", match ($nuevo) {
+                "CONFIRMADA" => "Asistencia confirmada",
+                "ATENDIDA" => "Paciente atendido",
+                default => "El paciente no se presentó",
+            }, "CAMBIO_ESTADO_CITA");
 
             return $cita;
         });
+    }
+
+    /**
+     * CU27 (RF-29), lo ejecuta el Temporizador: marca como INASISTENCIA las citas PROGRAMADAS o
+     * CONFIRMADAS cuya ficha terminó hace más de tolerancia_inasistencia_min minutos y que no tienen
+     * consulta. Cada cita va en su propia transacción. Devuelve cuántas marcó.
+     */
+    public function marcarInasistenciasVencidas(?Carbon $ahora = null): int
+    {
+        $ahora ??= now();
+        $marcadas = 0;
+
+        // CU27 paso 1: candidatas.
+        foreach ($this->citasVencidas($ahora)->pluck("citas.id") as $id) {
+            $marcada = DB::transaction(function () use ($id, $ahora) {
+                // CU27 paso 2: la cita bloqueada (FOR UPDATE SKIP LOCKED: si alguien la está cambiando,
+                // se salta y la toma la próxima ejecución) y revisada otra vez dentro de la transacción.
+                $cita = Cita::whereKey($id)->lock("for update skip locked")->first();
+                if ($cita === null || ! $this->citasVencidas($ahora)->where("citas.id", $id)->exists()) {
+                    return false;
+                }
+                $cita->load($this->relacionesCita());
+
+                // CU27 paso 3: INASISTENCIA por el SISTEMA (sin usuario), historial, avisos y bitácora.
+                $this->registrarCambioEstado($cita, "INASISTENCIA", null, "SISTEMA",
+                    "Marcada automáticamente: nadie registró la asistencia", "INASISTENCIA_AUTOMATICA");
+
+                return true;
+            });
+
+            $marcadas += $marcada ? 1 : 0;
+        }
+
+        // CU27 paso 4: cuántas se marcaron.
+        return $marcadas;
+    }
+
+    /**
+     * CU27 paso 1 (y --simular): citas PROGRAMADAS o CONFIRMADAS cuya ficha terminó hace más de
+     * tolerancia_inasistencia_min minutos (fecha + hora_fin + tolerancia < $ahora) y SIN consulta
+     * registrada (CU18 A1: si hay consulta, el paciente vino). Con parámetros.
+     */
+    public function citasVencidas(Carbon $ahora): Builder
+    {
+        return Cita::join("fichas", "fichas.id", "=", "citas.ficha_id")
+            ->whereIn("citas.estado", Cita::ESTADOS_VIGENTES)
+            ->whereRaw("(fichas.fecha + fichas.hora_fin + make_interval(mins => ?)) < ?::timestamp",
+                [Cita::parametro("tolerancia_inasistencia_min"), $ahora->format("Y-m-d H:i:s")])
+            ->whereNotExists(fn ($consulta) => $consulta->selectRaw("1")->from("consultas")->whereColumn("consultas.cita_id", "citas.id"))
+            ->select("citas.*")
+            ->orderBy("fichas.fecha")
+            ->orderBy("fichas.hora_inicio");
     }
 
     /**
@@ -426,10 +521,11 @@ class CitaService
     }
 
     /**
-     * CU15 pasos 6 a 9 (lo reutiliza CU16 A1): valida y crea la cita con su historial y sus avisos,
+     * CU15 pasos 6 a 9 (lo reutilizan CU16 A1 y CU26): valida y crea la cita con su historial y sus avisos,
      * dentro de la transacción del llamador. $reemplaza: la cita CANCELADA que esta reemplaza.
+     * $excepcion (CU26): administrador_autoriza_id y justificacion_excepcion; la edad no se valida.
      */
-    private function registrarCita(array $datos, Usuario $usuario, string $origen, ?Cita $reemplaza = null): Cita
+    private function registrarCita(array $datos, Usuario $usuario, string $origen, ?Cita $reemplaza = null, ?array $excepcion = null): Cita
     {
         // a) La ficha queda bloqueada (FOR UPDATE) hasta el final de la transacción.
         $ficha = $this->bloquearFicha((int) $datos["ficha_id"]);
@@ -449,7 +545,7 @@ class CitaService
         }
         $this->validarPaciente($paciente);
         $this->validarFicha($ficha, $inicio);
-        $this->validarPacienteEnLaFecha($paciente, $ficha, $inicio);
+        $this->validarPacienteEnLaFecha($paciente, $ficha, $inicio, null, $excepcion !== null);
         $seguro = $this->validarSeguro($datos["seguro_paciente_id"] ?? null, $paciente, $inicio);
 
         // c) La cita, con su código CM- siguiente.
@@ -469,6 +565,9 @@ class CitaService
             "codigo_autorizacion_seguro" => $seguro ? (($datos["codigo_autorizacion_seguro"] ?? null) ?: null) : null,
             "enlace_virtual" => $this->enlaceVirtual($ficha, $codigo),
             "fecha_registro" => now(),
+            // CU26 / ck_citas_excepcion: administrador y justificación, siempre juntos.
+            "administrador_autoriza_id" => $excepcion["administrador_autoriza_id"] ?? null,
+            "justificacion_excepcion" => $excepcion["justificacion_excepcion"] ?? null,
         ]);
         $cita->setRelation("ficha", $ficha);
         $cita->setRelation("paciente", $paciente);
@@ -517,6 +616,33 @@ class CitaService
         $this->crearNotificaciones($cita, $usuario, "CITA_CANCELADA", $fichaLiberada);
     }
 
+    /**
+     * CU18 paso 5 (lo reutiliza CU27): estado nuevo, historial y bitácora, dentro de la transacción del
+     * llamador. $usuario null = el SISTEMA (ck_historiales_usuario_sistema: entonces canal SISTEMA).
+     * ATENDIDA e INASISTENCIA anulan los recordatorios pendientes (la cita ya ocurrió, o no).
+     */
+    private function registrarCambioEstado(Cita $cita, string $nuevo, ?Usuario $usuario, string $canal, string $motivo, string $accion): void
+    {
+        $antes = $this->foto($cita);
+        $estadoAnterior = $cita->estado;
+        $cita->update(["estado" => $nuevo]);
+
+        HistorialCita::create([
+            "cita_id" => $cita->id,
+            "usuario_realiza_id" => $usuario?->id,
+            "estado_anterior" => $estadoAnterior,
+            "estado_nuevo" => $nuevo,
+            "canal" => $canal,
+            "motivo" => $motivo,
+        ]);
+
+        if (in_array($nuevo, ["ATENDIDA", "INASISTENCIA"], true)) {
+            $this->cancelarAvisosPendientes($cita);
+        }
+
+        Bitacora::registrar($accion, "citas", $usuario?->id, true, "citas", $cita->id, $canal, $antes, $this->foto($cita));
+    }
+
     // RN13: la cita bloqueada (FOR UPDATE) con su paciente y su ficha, leída de nuevo dentro de la transacción.
     private function bloquearCita(Cita $cita): Cita
     {
@@ -525,7 +651,13 @@ class CitaService
             throw new ReglaNegocioException("La cita no existe.");
         }
 
-        return $bloqueada->load(array_merge(["paciente.persona"], array_map(fn ($relacion) => "ficha." . $relacion, self::RELACIONES_FICHA)));
+        return $bloqueada->load($this->relacionesCita());
+    }
+
+    // Relaciones de la cita que usan las validaciones, los avisos y la bitácora (foto).
+    private function relacionesCita(): array
+    {
+        return array_merge(["paciente.persona"], array_map(fn ($relacion) => "ficha." . $relacion, self::RELACIONES_FICHA));
     }
 
     // RN13 / RF-22: la ficha bloqueada (FOR UPDATE) hasta el final de la transacción.
@@ -663,14 +795,18 @@ class CitaService
     }
 
     // RN15, RN16 y RN17: reglas del paciente en la FECHA DE LA CITA. $sinContarCitaId: la cita que
-    // se reprograma (CU16) no cuenta como cruce consigo misma.
-    private function validarPacienteEnLaFecha(Paciente $paciente, Ficha $ficha, Carbon $inicio, ?int $sinContarCitaId = null): void
+    // se reprograma (CU16) no cuenta como cruce consigo misma. $exceptuarEdad (CU26): la edad tiene
+    // una excepción autorizada; el sexo se sigue validando.
+    private function validarPacienteEnLaFecha(Paciente $paciente, Ficha $ficha, Carbon $inicio, ?int $sinContarCitaId = null, bool $exceptuarEdad = false): void
     {
         $persona = $paciente->persona;
 
         // RN15 / R-EDAD: edad y sexo que admite la especialidad.
         $especialidad = $ficha->horario->medicoEspecialidad->especialidad;
-        if ($mensaje = $especialidad->restriccionPara($persona->edadEn($inicio), $persona->sexo)) {
+        $mensaje = $exceptuarEdad
+            ? $especialidad->restriccionSexo($persona->sexo)
+            : $especialidad->restriccionPara($persona->edadEn($inicio), $persona->sexo);
+        if ($mensaje) {
             throw new ReglaNegocioException($mensaje);
         }
 

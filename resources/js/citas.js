@@ -66,12 +66,24 @@ export function validarCita(formulario, componente, hoy) {
     if (! componente.fichaId) errores.ficha_id = 'Elija un horario disponible.';
     if ((componente.motivo ?? '').length > 500) errores.motivo = 'El motivo no puede superar los 500 caracteres.';
 
+    // CU26 paso 6: justificación obligatoria de al menos 10 caracteres.
+    if (componente.modo === 'EXCEPCION') {
+        const justificacion = (componente.justificacion ?? '').trim();
+        if (justificacion === '') {
+            errores.justificacion_excepcion = 'La justificación de la excepción es obligatoria.';
+        } else if (justificacion.length < 10) {
+            errores.justificacion_excepcion = 'La justificación debe tener al menos 10 caracteres.';
+        } else if (justificacion.length > 1000) {
+            errores.justificacion_excepcion = 'La justificación no puede superar los 1000 caracteres.';
+        }
+    }
+
     return mostrarErrores(formulario, errores);
 }
 
 /*
- * Componente Alpine del formulario de cita (CU15).
- * config: { modo ('RECEPCION' | 'AUTOSERVICIO'), opciones (A1: «Para mí» y menores a cargo),
+ * Componente Alpine del formulario de cita (CU15 y CU26).
+ * config: { modo ('RECEPCION' | 'AUTOSERVICIO' | 'EXCEPCION'), opciones (A1: «Para mí» y menores a cargo),
  *           inicialPaciente, inicial, especialidades (con límites RN15 y sus médicos), urlFichas,
  *           urlPacientes, hoy }
  */
@@ -100,6 +112,8 @@ export function formularioCita(config) {
         codigoAutorizacion: '',
         // CU15 paso 5: resumen antes de confirmar.
         resumen: false,
+        // CU26 paso 4: justificación de la excepción de edad.
+        justificacion: '',
 
         init() {
             const inicial = config.inicial;
@@ -112,6 +126,7 @@ export function formularioCita(config) {
             this.motivo = inicial.motivo ?? '';
             this.seguroId = String(inicial.seguro_paciente_id ?? '');
             this.codigoAutorizacion = inicial.codigo_autorizacion_seguro ?? '';
+            this.justificacion = inicial.justificacion_excepcion ?? '';
 
             // Si la especialidad preseleccionada no admite al paciente, se descarta.
             if (this.especialidadId && ! this.especialidad) {
@@ -123,13 +138,33 @@ export function formularioCita(config) {
         },
 
         // CU15 paso 2 / RN15: especialidades que admiten la edad y el sexo del paciente.
+        // CU26 paso 2: en modo excepción, todas (el servidor revisa la edad y el sexo en la fecha de la cita).
         get especialidadesPermitidas() {
             if (! this.paciente) return [];
-            const { edad, sexo } = this.paciente;
+            if (this.modo === 'EXCEPCION') return this.especialidades;
+            const { sexo } = this.paciente;
             return this.especialidades.filter((e) =>
-                (e.edad_minima === null || edad >= e.edad_minima)
-                && (e.edad_maxima === null || edad <= e.edad_maxima)
-                && (e.sexo_permitido === null || e.sexo_permitido === sexo));
+                ! this.fueraDeRango(e) && (e.sexo_permitido === null || e.sexo_permitido === sexo));
+        },
+        // RN15: la edad (hoy) del paciente está fuera del rango de la especialidad.
+        fueraDeRango(e) {
+            const edad = this.paciente?.edad;
+            return (e.edad_minima !== null && edad < e.edad_minima) || (e.edad_maxima !== null && edad > e.edad_maxima);
+        },
+        // RN15: rango de edad en texto (como Especialidad::textoRangoEdad).
+        rangoEspecialidad(e) {
+            if (e.edad_minima !== null && e.edad_maxima !== null) return 'de ' + e.edad_minima + ' a ' + e.edad_maxima + ' años';
+            if (e.edad_minima !== null) return 'desde los ' + e.edad_minima + ' años';
+            if (e.edad_maxima !== null) return 'hasta los ' + e.edad_maxima + ' años';
+            return 'todas las edades';
+        },
+        // CU26 paso 2: en modo excepción se marcan las que están fuera del rango de edad (y las de otro sexo).
+        textoEspecialidad(e) {
+            if (this.modo !== 'EXCEPCION') return e.nombre;
+            const marcas = [];
+            if (this.fueraDeRango(e)) marcas.push('fuera del rango de edad: ' + this.rangoEspecialidad(e));
+            if (e.sexo_permitido !== null && e.sexo_permitido !== this.paciente?.sexo) marcas.push('solo ' + (e.sexo_permitido === 'F' ? 'mujeres' : 'hombres'));
+            return e.nombre + (marcas.length ? ' — ' + marcas.join('; ') : '');
         },
         get especialidad() {
             return this.especialidadesPermitidas.find((e) => String(e.id) === this.especialidadId) ?? null;

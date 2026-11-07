@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\ReglaNegocioException;
+use App\Models\Administrador;
 use App\Models\Cita;
 use App\Models\Especialidad;
 use App\Models\Ficha;
@@ -24,10 +25,15 @@ use Illuminate\Support\MessageBag;
  * Registrar asistencia (RF-25) y CU19 Consultar agenda médica (RF-26). Recepción con citas.programar /
  * reprogramar / cancelar / confirmar / registrar_asistencia, el médico con citas.registrar_asistencia
  * y agenda.propia (solo sus citas) y el paciente con citas.autoservicio (sus citas o las de los menores
- * a su cargo). Las reglas de negocio están en CitaService; aquí se valida el formato y se responde.
+ * a su cargo). CU26 Autorizar excepción de edad (RF-28): el administrador con citas.autorizar_excepcion
+ * usa el formulario de CU15 en modo excepción. Las reglas de negocio están en CitaService; aquí se valida
+ * el formato y se responde.
  */
 class CitaController extends Controller
 {
+    // CU26 (RF-28): modo del formulario de CU15 para programar con excepción de edad (la cita queda con origen RECEPCION).
+    public const MODO_EXCEPCION = "EXCEPCION";
+
     public function __construct(private CitaService $citas, private AgendaService $agenda)
     {
     }
@@ -197,9 +203,10 @@ class CitaController extends Controller
 
     // CU15 pasos 1 a 5 (y A1): formulario con buscador de paciente, especialidad, médico, fecha,
     // fichas disponibles, motivo, seguro y resumen antes de confirmar.
+    // CU26 pasos 1 a 5: el mismo formulario en modo excepción (?excepcion=1), con la justificación.
     public function create(Request $request)
     {
-        $modo = $this->modo();
+        $modo = $this->modo($this->pideExcepcion($request));
         $usuario = $request->user();
 
         // CU15 paso 1: paciente ya elegido (?paciente_id= desde la ficha del paciente o al volver con errores).
@@ -229,6 +236,8 @@ class CitaController extends Controller
             "motivo" => old("motivo", ""),
             "seguro_paciente_id" => old("seguro_paciente_id", ""),
             "codigo_autorizacion_seguro" => old("codigo_autorizacion_seguro", ""),
+            // CU26 paso 4.
+            "justificacion_excepcion" => old("justificacion_excepcion", ""),
         ];
 
         return view("citas.create", [
@@ -238,27 +247,32 @@ class CitaController extends Controller
             "inicial" => $inicial,
             "especialidades" => $this->especialidadesConMedicos(),
             // A1: sin correo verificado no se puede confirmar.
-            "correoVerificado" => $modo === CitaService::ORIGEN_RECEPCION || $usuario->correo_verificado_en !== null,
+            "correoVerificado" => $modo !== CitaService::ORIGEN_AUTOSERVICIO || $usuario->correo_verificado_en !== null,
         ]);
     }
 
     // CU15 pasos 6 a 10: validar el formato y programar con CitaService.
+    // CU26 pasos 6 a 10: en modo excepción, también la justificación, y programarConExcepcion.
     public function store(Request $request)
     {
-        $modo = $this->modo();
+        $modo = $this->modo($this->pideExcepcion($request));
+        $esExcepcion = $modo === self::MODO_EXCEPCION;
 
-        // CU15 paso 6: formato (las reglas de negocio las revisa CitaService dentro de la transacción).
-        $datos = $request->validate($this->reglas("programar"), $this->mensajes());
+        // CU15 paso 6 / CU26 paso 6: formato (las reglas de negocio las revisa CitaService dentro de la transacción).
+        $datos = $request->validate($this->reglas($esExcepcion ? "excepcion" : "programar"), $this->mensajes());
 
         try {
-            $cita = $this->citas->programar($datos, $request->user(), $modo);
+            $cita = $esExcepcion
+                ? $this->citas->programarConExcepcion($datos, $datos["justificacion_excepcion"], $request->user(), $this->administradorQueAutoriza($request))
+                : $this->citas->programar($datos, $request->user(), $modo);
         } catch (ReglaNegocioException $e) {
-            // CU15 paso 8: vuelve al formulario con el mensaje y lo elegido (las fichas se recargan).
+            // CU15 paso 8 / CU26 A1–A3: vuelve al formulario con el mensaje y lo elegido (las fichas se recargan).
             return back()->withErrors(["cita" => $e->getMessage()])->withInput();
         }
 
-        // CU15 paso 10.
-        return redirect()->route("citas.mostrar", $cita->id)->with("exito", "Cita {$cita->codigo} registrada.");
+        // CU15 paso 10 / CU26 paso 10.
+        return redirect()->route("citas.mostrar", $cita->id)
+            ->with("exito", "Cita {$cita->codigo} registrada" . ($esExcepcion ? " con excepción de edad." : "."));
     }
 
     // RF-27: detalle de la cita y su historial. CU16 pasos 1–4, CU17 pasos 2–3 y CU18 paso 2: los
@@ -275,6 +289,8 @@ class CitaController extends Controller
             "historiales.usuario", "historiales.fichaAnterior", "historiales.fichaNueva",
             // CU16 A1: «Reemplaza a» / «Reemplazada por».
             "citaReemplazada", "reemplazadaPor",
+            // CU26 paso 10: quién autorizó la excepción de edad.
+            "administradorAutoriza.persona",
         ])->findOrFail($id);
 
         $this->autorizarVer($request, $cita);
@@ -389,9 +405,10 @@ class CitaController extends Controller
     }
 
     // CU15 paso 3 (JSON): SOLO las fichas disponibles del médico en la especialidad y la fecha (RF-21).
+    // También para el modo excepción (CU26 paso 3).
     public function fichasDisponibles(Request $request)
     {
-        $this->modo();
+        abort_unless(Gate::any(["citas.programar", "citas.autoservicio"]) || $this->administradorQueAutoriza($request) !== null, 403);
 
         $datos = $request->validate([
             "medico_id" => ["required", "integer"],
@@ -427,10 +444,11 @@ class CitaController extends Controller
         ]);
     }
 
-    // CU15 paso 1 (JSON): buscar pacientes ACTIVOS con el mismo criterio que CU11.
+    // CU15 paso 1 (JSON): buscar pacientes ACTIVOS con el mismo criterio que CU11. También para el
+    // modo excepción (CU26 paso 2).
     public function buscarPacientes(Request $request)
     {
-        abort_unless(Gate::allows("citas.programar"), 403);
+        abort_unless(Gate::allows("citas.programar") || $this->administradorQueAutoriza($request) !== null, 403);
 
         $texto = trim((string) $request->query("q", ""));
         if (mb_strlen($texto) < 2) {
@@ -443,14 +461,38 @@ class CitaController extends Controller
     }
 
     // CU15: origen según el permiso (citas.programar = RECEPCION, citas.autoservicio = AUTOSERVICIO); si no, 403.
-    private function modo(): string
+    // CU26 paso 1: $excepcion = modo EXCEPCION, solo con citas.autorizar_excepcion y perfil de
+    // administrador ACTIVO (RN25); si no, 403. La cita se guarda con origen RECEPCION.
+    private function modo(bool $excepcion = false): string
     {
+        if ($excepcion) {
+            abort_if($this->administradorQueAutoriza(request()) === null, 403);
+
+            return self::MODO_EXCEPCION;
+        }
         if (Gate::allows("citas.programar")) {
             return CitaService::ORIGEN_RECEPCION;
         }
         abort_unless(Gate::allows("citas.autoservicio"), 403);
 
         return CitaService::ORIGEN_AUTOSERVICIO;
+    }
+
+    // CU26 paso 1: ?excepcion=1 en la URL o excepcion=1 oculto en el formulario.
+    private function pideExcepcion(Request $request): bool
+    {
+        return $request->boolean("excepcion") || (bool) old("excepcion");
+    }
+
+    // CU26 paso 1 / RN25: perfil de administrador ACTIVO del usuario con citas.autorizar_excepcion (null si no puede).
+    private function administradorQueAutoriza(Request $request): ?Administrador
+    {
+        if (! Gate::allows("citas.autorizar_excepcion")) {
+            return null;
+        }
+        $administrador = $request->user()->persona?->administrador;
+
+        return $administrador?->estado === "ACTIVO" ? $administrador : null;
     }
 
     // CU15 A1 / R-TUTOR: el propio paciente (si está ACTIVO) y los menores de los que es responsable legal verificado.
@@ -580,6 +622,10 @@ class CitaController extends Controller
                 "fecha" => ["required", "date_format:Y-m-d"],
                 "estado" => ["nullable", "in:" . implode(",", Cita::ESTADOS)],
             ],
+            // CU26 paso 6: lo de CU15 más la justificación (obligatoria, al menos 10 caracteres).
+            "excepcion" => $this->reglas("programar") + [
+                "justificacion_excepcion" => ["required", "string", "min:10", "max:1000"],
+            ],
             default => [
                 "paciente_id" => ["required", "integer", "exists:pacientes,id"],
                 "especialidad_id" => ["required", "integer", "exists:especialidades,id"],
@@ -615,6 +661,10 @@ class CitaController extends Controller
             "seguro_paciente_id.integer" => "El seguro elegido no es válido.",
             "seguro_paciente_id.exists" => "El seguro elegido no existe.",
             "codigo_autorizacion_seguro.max" => "El código de autorización no puede superar los 100 caracteres.",
+            // CU26 paso 6.
+            "justificacion_excepcion.required" => "La justificación de la excepción es obligatoria.",
+            "justificacion_excepcion.min" => "La justificación debe tener al menos 10 caracteres.",
+            "justificacion_excepcion.max" => "La justificación no puede superar los 1000 caracteres.",
             // CU16, CU17 y CU18.
             "id.required" => "No se indicó la cita.",
             "id.integer" => "La cita no es válida.",

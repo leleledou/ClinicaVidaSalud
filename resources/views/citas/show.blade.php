@@ -61,6 +61,17 @@
                     <div class="dato"><dt>Canal</dt><dd>{{ $cita->canal }}</dd></div>
                     <div class="dato"><dt>Registrada por</dt><dd>{{ $cita->usuarioRegistra->persona->nombre_completo }} ({{ $cita->usuarioRegistra->nombre_usuario }})</dd></div>
                     <div class="dato"><dt>Fecha de registro</dt><dd>{{ $cita->fecha_registro?->format('d/m/Y H:i') }}</dd></div>
+                    {{-- CU26 paso 10 (RF-28): quién autorizó la excepción de edad y por qué --}}
+                    @if ($cita->tieneExcepcion())
+                        <div class="dato xl:col-span-2">
+                            <dt>Excepción de edad</dt>
+                            <dd>
+                                <span class="font-semibold">Excepción de edad autorizada por {{ $cita->administradorAutoriza->persona->nombre_completo }}</span>
+                                ({{ $cita->administradorAutoriza->codigo }})
+                                <span class="mt-1 block text-slate-600">Justificación: {{ $cita->justificacion_excepcion }}</span>
+                            </dd>
+                        </div>
+                    @endif
                     {{-- CU17 / RF-24: el motivo de la cancelación queda para consultas históricas --}}
                     @if ($cita->estado === 'CANCELADA')
                         <div class="dato xl:col-span-2"><dt>Motivo de cancelación</dt><dd>{{ $cita->motivo_cancelacion }}</dd></div>

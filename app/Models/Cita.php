@@ -76,6 +76,18 @@ class Cita extends Model
         return $this->belongsTo(PacienteSeguro::class, "seguro_paciente_id");
     }
 
+    // CU26 (RF-28): administrador que autorizó la excepción de edad (con justificacion_excepcion, ck_citas_excepcion).
+    public function administradorAutoriza()
+    {
+        return $this->belongsTo(Administrador::class, "administrador_autoriza_id");
+    }
+
+    // CU26: la cita tiene una excepción de edad autorizada.
+    public function tieneExcepcion(): bool
+    {
+        return $this->administrador_autoriza_id !== null;
+    }
+
     // RF-27: historial de cambios de estado y de ficha.
     public function historiales()
     {

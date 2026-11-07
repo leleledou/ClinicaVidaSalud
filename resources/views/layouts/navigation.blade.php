@@ -59,6 +59,13 @@
             </x-menu-enlace>
         @endcan
 
+        {{-- CU26 Autorizar excepción de edad (formulario de CU15 en modo excepción) --}}
+        @can('citas.autorizar_excepcion')
+            <x-menu-enlace :href="route('citas.crear', ['excepcion' => 1])" :active="request()->routeIs('citas.crear') && request()->boolean('excepcion')">
+                Excepción de edad
+            </x-menu-enlace>
+        @endcan
+
         {{-- Citas del día --}}
         @canany(['citas.programar', 'agenda.consultar'])
             <x-menu-enlace :href="route('citas.listar')" :active="request()->routeIs('citas.listar', 'citas.mostrar')">
