@@ -37,6 +37,12 @@ class Tratamiento extends Model
         return $this->belongsTo(Consulta::class, "consulta_id");
     }
 
+    // ORIGINA: el resultado de laboratorio que lo motivó (0..1, del mismo paciente).
+    public function resultadoLaboratorio()
+    {
+        return $this->belongsTo(ResultadoLaboratorio::class, "resultado_laboratorio_id");
+    }
+
     // PRESCRIBE: medicamentos del tratamiento.
     public function prescripciones()
     {

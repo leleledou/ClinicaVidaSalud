@@ -383,6 +383,11 @@
                             </table>
                         </div>
                     @endif
+
+                    {{-- CU32 paso 4: registrar evolución desde el cardex --}}
+                    @if ($puedeEvolucion)
+                        @include('consultas._evolucion', ['tratamiento' => $tratamiento])
+                    @endif
                 </div>
             @empty
                 <p class="text-sm text-slate-500">Sin tratamientos registrados.</p>

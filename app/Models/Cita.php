@@ -259,6 +259,26 @@ class Cita extends Model
         return $acciones;
     }
 
+    /**
+     * CU31 paso 3: botón de la consulta para el médico de la cita (consultas.gestionar, perfil ACTIVO):
+     * "iniciar" (PROGRAMADA o CONFIRMADA cuya hora ya llegó, o ATENDIDA por recepción sin consulta),
+     * "continuar" (consulta EN_CURSO), "ver" (FINALIZADA) o null. No cambia accionesPermitidas (CU18).
+     */
+    public function accionConsulta(Usuario $usuario): ?string
+    {
+        $medico = Consulta::medicoQueAtiende($usuario);
+        if ($medico === null || $this->medico()?->id !== $medico->id) {
+            return null;
+        }
+
+        $consulta = $this->consulta;
+        if ($consulta !== null) {
+            return $consulta->estado === "EN_CURSO" ? "continuar" : "ver";
+        }
+
+        return (in_array($this->estado, self::ESTADOS_VIGENTES, true) && $this->comenzo()) || $this->estado === "ATENDIDA" ? "iniciar" : null;
+    }
+
     // Valor entero de configuraciones_sistema (una consulta por clave en cada petición).
     public static function parametro(string $clave): int
     {

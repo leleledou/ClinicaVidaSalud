@@ -47,6 +47,22 @@ class Alergia extends Model
             ->exists();
     }
 
+    /**
+     * CU32 paso 3 (corrección 5 del diagrama v3.1): alergias ACTIVAS de tipo MEDICAMENTO de la historia
+     * cuyo nombre, normalizado con fn_normalizar_texto, contiene al medicamento o está contenido en él.
+     * La comparación es por texto: solo advierte.
+     */
+    public static function coincidentesConMedicamento(int $historiaId, string $medicamento)
+    {
+        return self::where("historia_clinica_id", $historiaId)
+            ->where("activa", true)
+            ->where("tipo", "MEDICAMENTO")
+            ->whereRaw("(position(fn_normalizar_texto(sustancia) in fn_normalizar_texto(?)) > 0
+                or position(fn_normalizar_texto(?) in fn_normalizar_texto(sustancia)) > 0)", [$medicamento, $medicamento])
+            ->orderBy("sustancia")
+            ->get();
+    }
+
     public function textoTipo(): string
     {
         return self::TIPOS[$this->tipo] ?? $this->tipo;

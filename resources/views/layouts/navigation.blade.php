@@ -8,6 +8,8 @@
     // CU30: el médico (historia.consultar y perfil de médico ACTIVO) ve «Mis pacientes»; el paciente, «Mi cardex».
     $verMisPacientes = \App\Models\Paciente::medicoClinico($usuarioMenu) !== null;
     $verMiCardex = ! $verMisPacientes && Gate::allows('historia.propia');
+    // CU31: el médico (consultas.gestionar y perfil de médico ACTIVO) ve «Mis consultas».
+    $verMisConsultas = \App\Models\Consulta::medicoQueAtiende($usuarioMenu) !== null;
 @endphp
 
 <!-- Fondo oscuro detrás del cajón (celular y tablet) -->
@@ -122,13 +124,22 @@
         @endif
 
         {{-- ATENCIÓN CLÍNICA --}}
-        @if ($verMisPacientes || $verMiCardex)
+        @if ($verMisPacientes || $verMiCardex || $verMisConsultas)
             <x-menu-seccion>Atención clínica</x-menu-seccion>
 
             {{-- CU30 Consultar cardex: médico («Mis pacientes») o paciente («Mi cardex») --}}
-            <x-menu-enlace :href="route('historias-clinicas.listar')" :active="request()->routeIs('historias-clinicas.*')">
-                {{ $verMisPacientes ? 'Mis pacientes' : 'Mi cardex' }}
-            </x-menu-enlace>
+            @if ($verMisPacientes || $verMiCardex)
+                <x-menu-enlace :href="route('historias-clinicas.listar')" :active="request()->routeIs('historias-clinicas.*')">
+                    {{ $verMisPacientes ? 'Mis pacientes' : 'Mi cardex' }}
+                </x-menu-enlace>
+            @endif
+
+            {{-- CU31 Atender consulta médica: «Mis consultas» del médico --}}
+            @if ($verMisConsultas)
+                <x-menu-enlace :href="route('consultas.listar')" :active="request()->routeIs('consultas.*')">
+                    Mis consultas
+                </x-menu-enlace>
+            @endif
         @endif
 
         {{-- CATÁLOGOS --}}

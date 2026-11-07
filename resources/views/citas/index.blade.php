@@ -78,6 +78,7 @@
                                 <td>
                                     <div class="flex flex-wrap items-center justify-end gap-2">
                                         @include('citas._estado-botones', ['cita' => $cita, 'acciones' => $accionesCita])
+                                        @include('consultas._boton', ['cita' => $cita])
                                         {{-- CU16: reprogramar y reasignar se hacen en el detalle (elegir la nueva ficha) --}}
                                         @if ($cambioFicha)
                                             <a href="{{ route('citas.mostrar', $cita->id) }}" class="accion">Reprogramar</a>

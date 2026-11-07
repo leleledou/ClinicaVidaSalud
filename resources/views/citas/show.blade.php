@@ -30,6 +30,8 @@
                 <div class="flex items-center gap-3">
                     <h2 class="tarjeta-titulo !mb-0">Cita médica {{ $cita->codigo }}</h2>
                     <x-estado-cita :estado="$cita->estado" />
+                    {{-- CU31 paso 3: iniciar, continuar o ver la consulta (también con la cita ya ATENDIDA) --}}
+                    @include('consultas._boton', ['cita' => $cita])
                 </div>
 
                 <dl class="grid grid-cols-1 gap-x-10 xl:grid-cols-2">

@@ -298,12 +298,14 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::post('/delete','delete')->name("alergias.eliminar");
     });
 
+    // CU31 Atender consulta médica (RF-32): solo el médico de la cita con consultas.gestionar (lo revisa
+    // ConsultaService). store = iniciar. Sin delete: una consulta no se elimina y FINALIZADA no se modifica.
     Route::prefix("consultas")->controller(ConsultaController::class)->group(function(){
         Route::get('/','index')->name("consultas.listar");
         Route::post('/','store')->name("consultas.guardar");
         Route::post('/update','update')->name("consultas.modificar");
-        Route::post('/delete','delete')->name("consultas.eliminar");
-        Route::get('/{id}','show')->name("consultas.mostrar");
+        Route::post('/finalizar','finalizar')->name("consultas.finalizar");
+        Route::get('/{id}','show')->whereNumber('id')->name("consultas.mostrar");
     });
 
     Route::prefix("tipos-examen")->controller(TipoExamenController::class)->group(function(){
@@ -346,20 +348,16 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/{id}','show')->name("resultados-laboratorio.mostrar");
     });
 
+    // CU32 Gestionar tratamientos y prescripciones (RF-33). store = registrar (consulta EN_CURSO);
+    // update = registrar la evolución. Sin delete: el trigger impide borrar (para corregir, se suspende).
     Route::prefix("tratamientos")->controller(TratamientoController::class)->group(function(){
-        Route::get('/','index')->name("tratamientos.listar");
         Route::post('/','store')->name("tratamientos.guardar");
         Route::post('/update','update')->name("tratamientos.modificar");
-        Route::post('/delete','delete')->name("tratamientos.eliminar");
-        Route::get('/{id}','show')->name("tratamientos.mostrar");
     });
 
+    // CU32: prescripciones (no se modifican ni se borran; el trigger lo impide).
     Route::prefix("prescripciones")->controller(PrescripcionController::class)->group(function(){
-        Route::get('/','index')->name("prescripciones.listar");
         Route::post('/','store')->name("prescripciones.guardar");
-        Route::post('/update','update')->name("prescripciones.modificar");
-        Route::post('/delete','delete')->name("prescripciones.eliminar");
-        Route::get('/{id}','show')->name("prescripciones.mostrar");
     });
 
     Route::prefix("notificaciones")->controller(NotificacionController::class)->group(function(){

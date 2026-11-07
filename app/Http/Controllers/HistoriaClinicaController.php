@@ -81,6 +81,8 @@ class HistoriaClinicaController extends Controller
             "acceso" => $acceso,
             // CU29 A1: el paciente no ve formularios ni botones.
             "puedeEditar" => $historia->puedeEditar($request->user()),
+            // CU32 paso 4: registrar la evolución de los tratamientos (médico con acceso y tratamientos.gestionar).
+            "puedeEvolucion" => $acceso === "medico" && $request->user()->tienePermiso("tratamientos.gestionar"),
             "consultas" => $paciente->consultasFinalizadas()->get(),
             "resultados" => $paciente->resultadosLaboratorio()->get(),
             // CU29 pasos 2 y 3: opciones de los formularios.

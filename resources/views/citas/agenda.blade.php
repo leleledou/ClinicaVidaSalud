@@ -152,6 +152,7 @@
                                                 <td>
                                                     <div class="flex flex-wrap items-center justify-end gap-2">
                                                         @include('citas._estado-botones', ['cita' => $cita, 'acciones' => $fila['acciones']])
+                                                        @include('consultas._boton', ['cita' => $cita])
                                                         <a href="{{ route('citas.mostrar', $cita->id) }}" class="accion">Ver cita</a>
                                                     </div>
                                                 </td>

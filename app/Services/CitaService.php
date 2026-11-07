@@ -378,6 +378,21 @@ class CitaService
     }
 
     /**
+     * CU31 paso 6: al finalizar la consulta, la cita PROGRAMADA o CONFIRMADA pasa a ATENDIDA con su
+     * historial (canal WEB, el médico, «Consulta finalizada»); si ya estaba ATENDIDA (CU18), no cambia.
+     * Dentro de la transacción del llamador (ConsultaService::finalizar).
+     */
+    public function atenderPorConsulta(Cita $cita, Usuario $usuario): Cita
+    {
+        $cita = $this->bloquearCita($cita);
+        if (in_array($cita->estado, Cita::ESTADOS_VIGENTES, true)) {
+            $this->registrarCambioEstado($cita, "ATENDIDA", $usuario, "WEB", "Consulta finalizada", "CAMBIO_ESTADO_CITA");
+        }
+
+        return $cita;
+    }
+
+    /**
      * CU27 (RF-29), lo ejecuta el Temporizador: marca como INASISTENCIA las citas PROGRAMADAS o
      * CONFIRMADAS cuya ficha terminó hace más de tolerancia_inasistencia_min minutos y que no tienen
      * consulta. Cada cita va en su propia transacción. Devuelve cuántas marcó.

@@ -106,7 +106,8 @@ class CitaController extends Controller
             ->get();
 
         // CU19 paso 4: todas las citas de esas fichas (una ficha puede tener varias canceladas y una activa).
-        $citas = Cita::with(["paciente.persona", "ficha.horario.medicoEspecialidad.medico"])
+        // CU31 paso 3: con su consulta (botón Iniciar / Continuar / Ver consulta).
+        $citas = Cita::with(["paciente.persona", "ficha.horario.medicoEspecialidad.medico", "consulta"])
             ->whereIn("ficha_id", $fichas->pluck("id"))
             ->orderBy("fecha_registro")
             ->orderBy("id")
@@ -188,7 +189,7 @@ class CitaController extends Controller
             ->withQueryString();
 
         // CU18 paso 2: acciones válidas de cada cita según su estado, la hora y los permisos.
-        $citas->getCollection()->load(["paciente", "ficha.horario.medicoEspecialidad.medico"]);
+        $citas->getCollection()->load(["paciente", "ficha.horario.medicoEspecialidad.medico", "consulta"]);
         $acciones = $citas->getCollection()->mapWithKeys(fn ($cita) => [$cita->id => $cita->accionesPermitidas($usuario)]);
 
         return view("citas.index", [
@@ -291,6 +292,8 @@ class CitaController extends Controller
             "citaReemplazada", "reemplazadaPor",
             // CU26 paso 10: quién autorizó la excepción de edad.
             "administradorAutoriza.persona",
+            // CU31 paso 3: botón de la consulta.
+            "consulta",
         ])->findOrFail($id);
 
         $this->autorizarVer($request, $cita);
