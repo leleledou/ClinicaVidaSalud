@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Exceptions\ReglaNegocioException;
 use App\Models\Cita;
 use App\Models\Consulta;
+use App\Models\OrdenLaboratorio;
 use App\Models\Prescripcion;
+use App\Models\TipoExamen;
 use App\Models\Tratamiento;
 use App\Services\ConsultaService;
 use Illuminate\Http\Request;
@@ -66,6 +68,9 @@ class ConsultaController extends Controller
             "cita.paciente.historiaClinica.antecedentes" => fn ($antecedente) => $antecedente->where("vigente", true)->orderBy("tipo"),
             "tratamientos" => fn ($tratamiento) => $tratamiento->orderBy("fecha_inicio")->orderBy("id"),
             "tratamientos.prescripciones", "tratamientos.resultadoLaboratorio.parametro",
+            // CU34 paso 4: órdenes de laboratorio de la consulta.
+            "ordenes" => fn ($orden) => $orden->orderBy("fecha_solicitud")->orderBy("id"),
+            "ordenes.tipoExamen",
         ])->findOrFail($id);
 
         // CU31 paso 1: solo el médico de la cita.
@@ -86,6 +91,9 @@ class ConsultaController extends Controller
             "vias" => Prescripcion::viasDisponibles(),
             "estadosTratamiento" => Tratamiento::ESTADOS,
             "respuestas" => Tratamiento::RESPUESTAS,
+            // CU34 paso 1: exámenes ACTIVOS y con parámetros, solo mientras la consulta está EN_CURSO.
+            "examenes" => $enCurso ? TipoExamen::solicitables()->get() : collect(),
+            "prioridades" => OrdenLaboratorio::PRIORIDADES,
         ]);
     }
 

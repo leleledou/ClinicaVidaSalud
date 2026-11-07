@@ -308,36 +308,36 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/{id}','show')->whereNumber('id')->name("consultas.mostrar");
     });
 
-    Route::prefix("tipos-examen")->controller(TipoExamenController::class)->group(function(){
+    // CU33 Gestionar catálogo de laboratorio (RF-34): exámenes. delete = desactivar (RN11).
+    Route::prefix("tipos-examen")->middleware("can:laboratorio.gestionar")->controller(TipoExamenController::class)->group(function(){
         Route::get('/','index')->name("tipos-examen.listar");
         Route::post('/','store')->name("tipos-examen.guardar");
         Route::post('/update','update')->name("tipos-examen.modificar");
         Route::post('/delete','delete')->name("tipos-examen.eliminar");
-        Route::get('/{id}','show')->name("tipos-examen.mostrar");
+        Route::post('/activar','activar')->name("tipos-examen.activar");
+        Route::get('/{id}','show')->whereNumber('id')->name("tipos-examen.mostrar");
     });
 
-    Route::prefix("parametros-laboratorio")->controller(ParametroLaboratorioController::class)->group(function(){
-        Route::get('/','index')->name("parametros-laboratorio.listar");
+    // CU33: parámetros del examen (en su ficha). Sin borrado.
+    Route::prefix("parametros-laboratorio")->middleware("can:laboratorio.gestionar")->controller(ParametroLaboratorioController::class)->group(function(){
         Route::post('/','store')->name("parametros-laboratorio.guardar");
         Route::post('/update','update')->name("parametros-laboratorio.modificar");
-        Route::post('/delete','delete')->name("parametros-laboratorio.eliminar");
-        Route::get('/{id}','show')->name("parametros-laboratorio.mostrar");
     });
 
-    Route::prefix("rangos-referencia")->controller(RangoReferenciaController::class)->group(function(){
-        Route::get('/','index')->name("rangos-referencia.listar");
+    // CU33: rangos de referencia (en la ficha del examen). Uno usado no se edita: se cierra su vigencia.
+    // delete = cerrar vigencia (RN23: no se borra).
+    Route::prefix("rangos-referencia")->middleware("can:laboratorio.gestionar")->controller(RangoReferenciaController::class)->group(function(){
         Route::post('/','store')->name("rangos-referencia.guardar");
         Route::post('/update','update')->name("rangos-referencia.modificar");
         Route::post('/delete','delete')->name("rangos-referencia.eliminar");
-        Route::get('/{id}','show')->name("rangos-referencia.mostrar");
     });
 
+    // CU34 Solicitar orden de laboratorio (RF-35): desde la consulta; solo su médico (lo revisa
+    // LaboratorioService). Sin borrado (trigger): una orden SOLICITADA se anula.
+    // delete = anular (RN11: no se borra).
     Route::prefix("ordenes-laboratorio")->controller(OrdenLaboratorioController::class)->group(function(){
-        Route::get('/','index')->name("ordenes-laboratorio.listar");
         Route::post('/','store')->name("ordenes-laboratorio.guardar");
-        Route::post('/update','update')->name("ordenes-laboratorio.modificar");
         Route::post('/delete','delete')->name("ordenes-laboratorio.eliminar");
-        Route::get('/{id}','show')->name("ordenes-laboratorio.mostrar");
     });
 
     Route::prefix("resultados-laboratorio")->controller(ResultadoLaboratorioController::class)->group(function(){

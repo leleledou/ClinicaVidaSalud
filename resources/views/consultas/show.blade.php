@@ -169,6 +169,90 @@
             @endif
         </div>
 
+        {{-- CU34 Solicitar orden de laboratorio (RF-35): órdenes de la consulta y «Solicitar examen» (solo EN_CURSO) --}}
+        <div class="tarjeta space-y-4" x-data="{ solicitar: {{ Js::from($errors->has('orden') || $errors->has('tipo_examen_id') || $errors->has('prioridad')) }}, examenId: {{ Js::from((string) old('tipo_examen_id', '')) }} }">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <h2 class="tarjeta-titulo !mb-0">Órdenes de laboratorio ({{ $consulta->ordenes->count() }})</h2>
+                @if ($enCurso && $examenes->isNotEmpty())
+                    <x-primary-button type="button" @click="solicitar = ! solicitar">Solicitar examen</x-primary-button>
+                @endif
+            </div>
+
+            {{-- CU34 paso 1: examen ACTIVO con parámetros (con su muestra e indicaciones) y prioridad --}}
+            @if ($enCurso && $examenes->isNotEmpty())
+                <form x-show="solicitar" x-cloak method="POST" action="{{ route('ordenes-laboratorio.guardar') }}" novalidate
+                      onsubmit="return validarOrden(this)"
+                      class="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
+                    @csrf
+                    <input type="hidden" name="consulta_id" value="{{ $consulta->id }}">
+                    @if ($errors->has('orden'))
+                        <div class="alerta-error font-medium sm:col-span-3">{{ $errors->first('orden') }}</div>
+                    @endif
+                    <div class="sm:col-span-2">
+                        <x-input-label for="tipo_examen_id" value="Examen" />
+                        <select id="tipo_examen_id" name="tipo_examen_id" x-model="examenId" class="campo">
+                            <option value="">Seleccione…</option>
+                            @foreach ($examenes as $examen)
+                                <option value="{{ $examen->id }}">{{ $examen->nombre }}</option>
+                            @endforeach
+                        </select>
+                        @foreach ($examenes as $examen)
+                            <p class="ayuda" x-show="examenId === {{ Js::from((string) $examen->id) }}" x-cloak>
+                                Muestra: {{ $examen->tipo_muestra }}{{ $examen->indicaciones_previas ? ' · ' . $examen->indicaciones_previas : '' }}
+                            </p>
+                        @endforeach
+                        <p class="js-error" data-campo="tipo_examen_id" hidden></p>
+                        <x-input-error :messages="$errors->get('tipo_examen_id')" class="mt-2" />
+                    </div>
+                    <div>
+                        <x-input-label for="prioridad" value="Prioridad" />
+                        <select id="prioridad" name="prioridad" class="campo">
+                            @foreach ($prioridades as $valor => $texto)
+                                <option value="{{ $valor }}" @selected(old('prioridad', 'NORMAL') === $valor)>{{ $texto }}</option>
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('prioridad')" class="mt-2" />
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3 sm:col-span-3">
+                        <x-primary-button>Solicitar</x-primary-button>
+                        <x-secondary-button @click="solicitar = false">Cancelar</x-secondary-button>
+                    </div>
+                </form>
+            @endif
+
+            {{-- CU34 paso 4: órdenes de la consulta; CU34 paso 3: anular una SOLICITADA (también con la consulta finalizada) --}}
+            <div class="tabla-contenedor">
+                <table class="tabla">
+                    <thead><tr><th>Código</th><th>Examen</th><th>Prioridad</th><th>Solicitada</th><th>Estado</th><th class="text-right">Acciones</th></tr></thead>
+                    <tbody>
+                        @forelse ($consulta->ordenes as $orden)
+                            <tr>
+                                <td class="whitespace-nowrap font-semibold">{{ $orden->codigo }}</td>
+                                <td>{{ $orden->tipoExamen->nombre }}</td>
+                                <td>
+                                    <span class="insignia {{ $orden->prioridad === 'URGENTE' ? 'insignia-cancelada' : 'insignia-inactivo' }}">{{ $prioridades[$orden->prioridad] ?? $orden->prioridad }}</span>
+                                </td>
+                                <td class="whitespace-nowrap">{{ $orden->fecha_solicitud->format('d/m/Y H:i') }}</td>
+                                <td>{{ $orden->textoEstado() }}</td>
+                                <td>
+                                    @if ($orden->estado === 'SOLICITADA')
+                                        <form method="POST" action="{{ route('ordenes-laboratorio.eliminar') }}" class="acciones"
+                                              onsubmit="return confirm({{ Js::from('¿Anular la orden ' . $orden->codigo . ' (' . $orden->tipoExamen->nombre . ')?') }});">
+                                            @csrf
+                                            <input type="hidden" name="id" value="{{ $orden->id }}">
+                                            <button type="submit" class="accion-peligro">Anular</button>
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="6" class="py-4 text-center text-slate-500">No se solicitaron exámenes en esta consulta.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         {{-- CU32: tratamientos de la consulta con sus prescripciones --}}
         <div class="tarjeta space-y-4" x-data="{ nuevoTratamiento: {{ Js::from($volvioTratamiento) }} }">
             <div class="flex flex-wrap items-center justify-between gap-3">
@@ -407,6 +491,11 @@
             }
             if (valor('fecha_fin') !== '' && valor('fecha_fin') < valor('fecha_inicio')) errores.fecha_fin = 'La fecha de fin no puede ser anterior a la de inicio.';
             return mostrarErroresConsulta(form, errores);
+        }
+
+        // CU34 paso 1: examen obligatorio.
+        function validarOrden(form) {
+            return mostrarErroresConsulta(form, form.elements['tipo_examen_id'].value === '' ? { tipo_examen_id: 'Elija el examen.' } : {});
         }
 
         // CU32 paso 2: campos obligatorios y duración de 1 a 365 días.

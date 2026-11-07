@@ -142,6 +142,16 @@
             @endif
         @endif
 
+        {{-- LABORATORIO --}}
+        @can('laboratorio.gestionar')
+            <x-menu-seccion>Laboratorio</x-menu-seccion>
+
+            {{-- CU33 Gestionar catálogo de laboratorio --}}
+            <x-menu-enlace :href="route('tipos-examen.listar')" :active="request()->routeIs('tipos-examen.*')">
+                Catálogo de laboratorio
+            </x-menu-enlace>
+        @endcan
+
         {{-- CATÁLOGOS --}}
         @canany(['especialidades.gestionar', 'medicos.gestionar', 'consultorios.gestionar', 'horarios.gestionar', 'bloqueos.gestionar', 'aseguradoras.gestionar'])
             <x-menu-seccion>Catálogos</x-menu-seccion>
