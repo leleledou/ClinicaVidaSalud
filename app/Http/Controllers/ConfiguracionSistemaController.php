@@ -86,9 +86,16 @@ class ConfiguracionSistemaController extends Controller
     // CU22 paso 5: int = entero (con mínimo); bool = true/false; decimal = numérico; string = obligatorio, máx. 255.
     private function reglas(ConfiguracionSistema $configuracion): array
     {
+        $entero = ["required", "integer", "min:" . self::minimo($configuracion->clave)];
+
+        // La sesión de Laravel caduca a los SESSION_LIFETIME minutos: la inactividad no puede superarlos.
+        if ($configuracion->clave === "minutos_inactividad_sesion") {
+            $entero[] = "max:" . self::maximoInactividad();
+        }
+
         return [
             "valor" => match ($configuracion->tipo_dato) {
-                "int" => ["required", "integer", "min:" . self::minimo($configuracion->clave)],
+                "int" => $entero,
                 "bool" => ["required", "in:true,false"],
                 "decimal" => ["required", "numeric"],
                 default => ["required", "string", "max:255"],
@@ -106,7 +113,15 @@ class ConfiguracionSistemaController extends Controller
             "valor.in" => "El valor debe ser true o false.",
             "valor.numeric" => "El valor debe ser un número.",
             "valor.string" => "El valor debe ser un texto.",
-            "valor.max" => "El valor no puede superar los 255 caracteres.",
+            "valor.max" => $configuracion->tipo_dato === "int"
+                ? "El valor no puede ser mayor que " . self::maximoInactividad() . " minutos: es la duración máxima de la sesión (SESSION_LIFETIME)."
+                : "El valor no puede superar los 255 caracteres.",
         ];
+    }
+
+    // Máximo de minutos_inactividad_sesion: la duración de la sesión (config/session.php, SESSION_LIFETIME).
+    private static function maximoInactividad(): int
+    {
+        return (int) config("session.lifetime");
     }
 }

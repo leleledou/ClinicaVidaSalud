@@ -184,12 +184,14 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/{id}','show')->name("especialidades.mostrar");
     });
 
-    Route::prefix("aseguradoras")->controller(AseguradoraController::class)->group(function(){
+    // CU23 Gestionar aseguradoras (RF-13). delete = desactivar (RN11).
+    Route::prefix("aseguradoras")->middleware("can:aseguradoras.gestionar")->controller(AseguradoraController::class)->group(function(){
         Route::get('/','index')->name("aseguradoras.listar");
         Route::post('/','store')->name("aseguradoras.guardar");
         Route::post('/update','update')->name("aseguradoras.modificar");
         Route::post('/delete','delete')->name("aseguradoras.eliminar");
-        Route::get('/{id}','show')->name("aseguradoras.mostrar");
+        Route::post('/activar','activar')->name("aseguradoras.activar");
+        Route::get('/{id}','show')->whereNumber('id')->name("aseguradoras.mostrar");
     });
 
     Route::prefix("seguros-paciente")->controller(PacienteSeguroController::class)->group(function(){
@@ -220,12 +222,13 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/{id}','show')->name("horarios.mostrar");
     });
 
-    Route::prefix("bloqueos")->controller(BloqueoAgendaController::class)->group(function(){
+    // CU25 Gestionar bloqueos de agenda (RF-12). update = solo el motivo; delete = levantar el bloqueo.
+    Route::prefix("bloqueos")->middleware("can:bloqueos.gestionar")->controller(BloqueoAgendaController::class)->group(function(){
         Route::get('/','index')->name("bloqueos.listar");
         Route::post('/','store')->name("bloqueos.guardar");
         Route::post('/update','update')->name("bloqueos.modificar");
         Route::post('/delete','delete')->name("bloqueos.eliminar");
-        Route::get('/{id}','show')->name("bloqueos.mostrar");
+        Route::get('/{id}','show')->whereNumber('id')->name("bloqueos.mostrar");
     });
 
     // CU14 Consultar disponibilidad de fichas (paciente y recepcionista).

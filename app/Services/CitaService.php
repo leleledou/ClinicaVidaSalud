@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\ReglaNegocioException;
 use App\Models\Bitacora;
+use App\Models\BloqueoAgenda;
 use App\Models\Cita;
 use App\Models\ConfiguracionSistema;
 use App\Models\Ficha;
@@ -203,6 +204,61 @@ class CitaService
 
             return $cita;
         });
+    }
+
+    /**
+     * CU25 (RF-12): cancela una cita porque un bloqueo de agenda cruza su ficha. Lo autoriza
+     * bloqueos.gestionar (no exige citas.cancelar) y no aplica la anticipación de la web. Reutiliza
+     * anular(): historial, avisos pendientes anulados y CITA_CANCELADA al paciente (o a su
+     * responsable legal) y al médico; la ficha no se libera (queda BLOQUEADA), así que el aviso al
+     * médico no dice que el horario quedó disponible. Una cita que ya no está vigente se deja como está.
+     */
+    public function cancelarPorBloqueo(Cita $cita, BloqueoAgenda $bloqueo, Usuario $usuario): Cita
+    {
+        return DB::transaction(function () use ($cita, $bloqueo, $usuario) {
+            $cita = $this->bloquearCita($cita);
+            if (! in_array($cita->estado, Cita::ESTADOS_VIGENTES, true)) {
+                return $cita;
+            }
+
+            $antes = $this->foto($cita);
+            $this->anular($cita, self::motivoBloqueo($bloqueo), $usuario, false);
+
+            Bitacora::registrar("CANCELAR_CITA", "citas", $usuario->id, true, "citas", $cita->id, "WEB", $antes, $this->foto($cita));
+
+            return $cita;
+        });
+    }
+
+    // CU25 pasos 6-7: citas PROGRAMADAS o CONFIRMADAS de unas fichas, ordenadas por fecha y hora, con el
+    // paciente y el médico (los muestra el resumen y las cancela cancelarPorBloqueo).
+    public function citasVigentesDeFichas($fichaIds): Collection
+    {
+        return Cita::with(["paciente.persona", "ficha.horario.medicoEspecialidad.medico.persona"])
+            ->whereIn("ficha_id", $fichaIds)
+            ->whereIn("estado", Cita::ESTADOS_VIGENTES)
+            ->get()
+            ->sortBy(fn (Cita $cita) => $cita->ficha->fecha . " " . $cita->ficha->hora_inicio)
+            ->values()
+            ->toBase();
+    }
+
+    // CU25: motivo de cancelación de las citas que cancela un bloqueo. CU25 paso 6 busca las
+    // citas de un bloqueo por el prefijo «Bloqueo de agenda #ID:».
+    public static function motivoBloqueo(BloqueoAgenda $bloqueo): string
+    {
+        return self::prefijoMotivoBloqueo($bloqueo->id) . " " . $bloqueo->motivo;
+    }
+
+    public static function prefijoMotivoBloqueo(int $bloqueoId): string
+    {
+        return "Bloqueo de agenda #{$bloqueoId}:";
+    }
+
+    // CU25: número del bloqueo en un motivo armado por motivoBloqueo() (o null si no lo es).
+    private static function bloqueoDelMotivo(?string $motivo): ?string
+    {
+        return preg_match('/^Bloqueo de agenda #(\d+):/', (string) $motivo, $partes) ? $partes[1] : null;
     }
 
     /**
@@ -441,8 +497,9 @@ class CitaService
     /**
      * CU17 pasos 5 y 6 (lo reutiliza CU16 A1): CANCELADA con su motivo, sin eliminar el registro
      * (RF-24, RN10), historial, avisos pendientes anulados y CITA_CANCELADA al paciente y al médico.
+     * $fichaLiberada = false (CU25): la ficha queda bloqueada, no disponible.
      */
-    private function anular(Cita $cita, string $motivo, Usuario $usuario): void
+    private function anular(Cita $cita, string $motivo, Usuario $usuario, bool $fichaLiberada = true): void
     {
         $estadoAnterior = $cita->estado;
         $cita->update(["estado" => "CANCELADA", "motivo_cancelacion" => $motivo]);
@@ -457,7 +514,7 @@ class CitaService
         ]);
 
         $this->cancelarAvisosPendientes($cita);
-        $this->crearNotificaciones($cita, $usuario, "CITA_CANCELADA");
+        $this->crearNotificaciones($cita, $usuario, "CITA_CANCELADA", $fichaLiberada);
     }
 
     // RN13: la cita bloqueada (FOR UPDATE) con su paciente y su ficha, leída de nuevo dentro de la transacción.
@@ -655,6 +712,12 @@ class CitaService
             throw new ReglaNegocioException("El seguro no está verificado o no está vigente en la fecha de la cita.");
         }
 
+        // RN20 / CU23 A2: la aseguradora de la póliza también debe estar ACTIVA (convenio vigente).
+        $aseguradora = $seguro->aseguradora;
+        if ($aseguradora->estado !== "ACTIVO") {
+            throw new ReglaNegocioException("El seguro no está vigente en la fecha de la cita: la aseguradora {$aseguradora->nombre} está inactiva.");
+        }
+
         return $seguro;
     }
 
@@ -702,8 +765,9 @@ class CitaService
      * CU15 paso 9 / CU16 paso 7 / CU17 paso 6: aviso $tipo (CITA_PROGRAMADA, CITA_REPROGRAMADA o
      * CITA_CANCELADA) PENDIENTE al paciente (o a su responsable legal verificado si es menor) y al
      * médico por SISTEMA. Si la cita sigue vigente, también el RECORDATORIO_CITA.
+     * $fichaLiberada = false (CU25): el CITA_CANCELADA del médico dice que la ficha quedó bloqueada.
      */
-    private function crearNotificaciones(Cita $cita, Usuario $usuario, string $tipo): void
+    private function crearNotificaciones(Cita $cita, Usuario $usuario, string $tipo, bool $fichaLiberada = true): void
     {
         $ficha = $cita->ficha;
         $paciente = $cita->paciente;
@@ -746,7 +810,10 @@ class CitaService
             ],
             "CITA_CANCELADA" => [
                 "Cita {$cita->codigo} cancelada", "Se canceló la cita {$cita->codigo} de {$detalle}. Motivo: {$cita->motivo_cancelacion}",
-                "Cita {$cita->codigo} cancelada", "Se canceló la cita {$cita->codigo} de {$nombre} del {$cuando}. El horario quedó disponible.",
+                "Cita {$cita->codigo} cancelada", "Se canceló la cita {$cita->codigo} de {$nombre} del {$cuando}. " . ($fichaLiberada
+                    ? "El horario quedó disponible."
+                    // CU25: el número del bloqueo sale del motivo «Bloqueo de agenda #ID: …» (motivoBloqueo).
+                    : "La ficha quedó bloqueada por el bloqueo de agenda #" . self::bloqueoDelMotivo($cita->motivo_cancelacion) . "."),
             ],
             default => [
                 "Cita {$cita->codigo} programada", "Se programó la cita {$cita->codigo} de {$detalle}.",

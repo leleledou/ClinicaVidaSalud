@@ -4,13 +4,15 @@ namespace App\Services;
 
 use App\Models\BloqueoAgenda;
 use App\Models\ConfiguracionSistema;
+use App\Models\Ficha;
 use App\Models\HorarioAtencion;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Lógica de la agenda (RF-11): generación de fichas y cruces de horarios.
- * La usan CU09 Gestionar horarios y, más adelante, CU14, CU15 y el Temporizador.
+ * La usan CU09 Gestionar horarios, CU25 Gestionar bloqueos de agenda y, más adelante, CU14, CU15 y el Temporizador.
  */
 class AgendaService
 {
@@ -22,6 +24,16 @@ class AgendaService
     public const SQL_MOTIVO_BLOQUEO = "(select b.motivo from bloqueos_agenda b where b.inicio < (fichas.fecha + fichas.hora_fin) and b.fin > (fichas.fecha + fichas.hora_inicio)
         and (b.alcance = 'CLINICA' or (b.alcance = 'MEDICO' and b.medico_id = me.medico_id) or (b.alcance = 'CONSULTORIO' and b.consultorio_id = h.consultorio_id))
         order by b.inicio limit 1)";
+
+    // CU25 paso 2: fichas BLOQUEADAS que cruza un bloqueo (mismo criterio que SQL_MOTIVO_BLOQUEO), como
+    // subconsulta sin parámetros sobre bloqueos_agenda.
+    public const SQL_FICHAS_BLOQUEADAS = "(select count(*) from fichas f
+        join horarios_atencion h on h.id = f.horario_atencion_id
+        join medicos_especialidades me on me.id = h.medico_especialidad_id
+        where f.estado = 'BLOQUEADA'
+        and bloqueos_agenda.inicio < (f.fecha + f.hora_fin) and bloqueos_agenda.fin > (f.fecha + f.hora_inicio)
+        and (bloqueos_agenda.alcance = 'CLINICA' or (bloqueos_agenda.alcance = 'MEDICO' and bloqueos_agenda.medico_id = me.medico_id)
+            or (bloqueos_agenda.alcance = 'CONSULTORIO' and bloqueos_agenda.consultorio_id = h.consultorio_id)))";
 
     /**
      * CU15/CU16 (días de atención del médico) y CU19 excepción: horarios ACTIVOS y vigentes desde hoy,
@@ -150,6 +162,61 @@ class AgendaService
     public function bloqueoQueCruza($bloqueos, Carbon $inicioFicha, Carbon $finFicha): ?BloqueoAgenda
     {
         return $bloqueos->first(fn ($bloqueo) => Carbon::parse($bloqueo->inicio)->lessThan($finFicha) && Carbon::parse($bloqueo->fin)->greaterThan($inicioFicha));
+    }
+
+    /**
+     * CU25: fichas del alcance de un bloqueo cuyo intervalo cruza [desde, hasta) (mismo criterio que
+     * bloqueoQueCruza: inicio del bloqueo < fin de la ficha y fin del bloqueo > inicio de la ficha).
+     * CLINICA: todas; CONSULTORIO: horarios de ese consultorio; MEDICO: horarios del médico en
+     * cualquier especialidad. Alias h (horarios_atencion) y me (medicos_especialidades).
+     */
+    public function fichasDelAlcance(string $alcance, ?int $medicoId, ?int $consultorioId, Carbon $desde, Carbon $hasta): Builder
+    {
+        return Ficha::join("horarios_atencion as h", "h.id", "=", "fichas.horario_atencion_id")
+            ->join("medicos_especialidades as me", "me.id", "=", "h.medico_especialidad_id")
+            // Rango de fechas (usa ix_fichas_fecha_hora) y cruce exacto con la hora.
+            ->whereBetween("fichas.fecha", [$desde->toDateString(), $hasta->toDateString()])
+            ->whereRaw("(fichas.fecha + fichas.hora_fin) > ?::timestamp", [$desde->format("Y-m-d H:i:s")])
+            ->whereRaw("(fichas.fecha + fichas.hora_inicio) < ?::timestamp", [$hasta->format("Y-m-d H:i:s")])
+            ->when($alcance === "CONSULTORIO", fn ($consulta) => $consulta->where("h.consultorio_id", $consultorioId))
+            ->when($alcance === "MEDICO", fn ($consulta) => $consulta->where("me.medico_id", $medicoId));
+    }
+
+    // CU25 paso 6: fichas afectadas = las del alcance que cruzan el bloqueo y cuya hora de inicio todavía no pasó.
+    public function fichasAfectadas(string $alcance, ?int $medicoId, ?int $consultorioId, Carbon $inicio, Carbon $fin, Carbon $ahora): Builder
+    {
+        return $this->fichasDelAlcance($alcance, $medicoId, $consultorioId, $inicio, $fin)
+            ->whereRaw("(fichas.fecha + fichas.hora_inicio) > ?::timestamp", [$ahora->format("Y-m-d H:i:s")]);
+    }
+
+    /**
+     * CU25 A2: de unas fichas BLOQUEADAS (id, horario_atencion_id, fecha, hora_inicio, hora_fin), los id
+     * de las que pueden volver a HABILITADA entre $desde y $hasta: las que no cruza ningún bloqueo
+     * vigente (bloqueosDe / bloqueoQueCruza) y cuyo horario sigue ACTIVO y vigente en esa fecha (CU09 A1
+     * bloquea las fichas posteriores al cierre de un horario).
+     */
+    public function fichasQueSeHabilitan($fichas, Carbon $desde, Carbon $hasta): array
+    {
+        $habilitar = [];
+        foreach ($fichas->groupBy("horario_atencion_id") as $horarioId => $grupo) {
+            $horario = HorarioAtencion::with("medicoEspecialidad")->find($horarioId);
+            $bloqueos = $this->bloqueosDe($horario, $desde, $hasta);
+
+            foreach ($grupo as $ficha) {
+                $fecha = Carbon::parse($ficha->fecha)->toDateString();
+                $vigente = $horario->estado === "ACTIVO"
+                    && $fecha >= Carbon::parse($horario->vigente_desde)->toDateString()
+                    && ($horario->vigente_hasta === null || $fecha <= Carbon::parse($horario->vigente_hasta)->toDateString());
+                $inicio = Carbon::parse($fecha)->setTimeFromTimeString($ficha->hora_inicio);
+                $fin = Carbon::parse($fecha)->setTimeFromTimeString($ficha->hora_fin);
+
+                if ($vigente && ! $this->bloqueoQueCruza($bloqueos, $inicio, $fin)) {
+                    $habilitar[] = $ficha->id;
+                }
+            }
+        }
+
+        return $habilitar;
     }
 
     /**

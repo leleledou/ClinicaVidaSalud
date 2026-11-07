@@ -107,7 +107,7 @@
         @endif
 
         {{-- CATÁLOGOS --}}
-        @canany(['especialidades.gestionar', 'medicos.gestionar', 'consultorios.gestionar', 'horarios.gestionar'])
+        @canany(['especialidades.gestionar', 'medicos.gestionar', 'consultorios.gestionar', 'horarios.gestionar', 'bloqueos.gestionar', 'aseguradoras.gestionar'])
             <x-menu-seccion>Catálogos</x-menu-seccion>
 
             {{-- CU06 Gestionar especialidades --}}
@@ -135,6 +135,20 @@
             @can('horarios.gestionar')
                 <x-menu-enlace :href="route('horarios.listar')" :active="request()->routeIs('horarios.*')">
                     Horarios
+                </x-menu-enlace>
+            @endcan
+
+            {{-- CU25 Gestionar bloqueos de agenda --}}
+            @can('bloqueos.gestionar')
+                <x-menu-enlace :href="route('bloqueos.listar')" :active="request()->routeIs('bloqueos.*')">
+                    Bloqueos de agenda
+                </x-menu-enlace>
+            @endcan
+
+            {{-- CU23 Gestionar aseguradoras --}}
+            @can('aseguradoras.gestionar')
+                <x-menu-enlace :href="route('aseguradoras.listar')" :active="request()->routeIs('aseguradoras.*')">
+                    Aseguradoras
                 </x-menu-enlace>
             @endcan
         @endcanany
