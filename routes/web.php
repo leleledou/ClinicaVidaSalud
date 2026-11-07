@@ -19,6 +19,7 @@ use App\Http\Controllers\EspecialidadController;
 use App\Http\Controllers\MedicoEspecialidadController;
 use App\Http\Controllers\AseguradoraController;
 use App\Http\Controllers\PacienteSeguroController;
+use App\Http\Controllers\PerfilPacienteController;
 use App\Http\Controllers\ConsultorioController;
 use App\Http\Controllers\HorarioAtencionController;
 use App\Http\Controllers\BloqueoAgendaController;
@@ -194,12 +195,21 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/{id}','show')->whereNumber('id')->name("aseguradoras.mostrar");
     });
 
+    // CU24 Gestionar seguros del paciente (RF-18). Página por paciente (?paciente_id=); los permisos
+    // (seguros.gestionar / seguros.verificar) se revisan en el controlador. delete = desactivar (RN11).
     Route::prefix("seguros-paciente")->controller(PacienteSeguroController::class)->group(function(){
         Route::get('/','index')->name("seguros-paciente.listar");
         Route::post('/','store')->name("seguros-paciente.guardar");
         Route::post('/update','update')->name("seguros-paciente.modificar");
         Route::post('/delete','delete')->name("seguros-paciente.eliminar");
-        Route::get('/{id}','show')->name("seguros-paciente.mostrar");
+        Route::post('/activar','activar')->name("seguros-paciente.activar");
+        Route::post('/verificar','verificar')->name("seguros-paciente.verificar");
+    });
+
+    // CU28 Gestionar perfil del paciente (RF-19): solo el propio perfil (no recibe id).
+    Route::prefix("perfil")->middleware("can:perfil.gestionar")->controller(PerfilPacienteController::class)->group(function(){
+        Route::get('/','show')->name("perfil.mostrar");
+        Route::post('/update','update')->name("perfil.modificar");
     });
 
     // CU08 Gestionar consultorios. delete = desactivar (RN11).

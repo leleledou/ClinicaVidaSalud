@@ -36,6 +36,19 @@ class Usuario extends Authenticatable
     // CU04 paso 6 / CU12 paso 5: formato del nombre de usuario (el mismo en JavaScript).
     public const FORMATO_NOMBRE_USUARIO = "/^[A-Za-z0-9._-]{3,50}$/";
 
+    // CU28 paso 4: horas de anticipación del recordatorio que puede elegir el paciente
+    // (ck_usuarios_horas_anticipacion: mayor que 0).
+    public const HORAS_ANTICIPACION = [1, 2, 6, 12, 24, 48];
+
+    // CU28 paso 4: opciones del select; incluye el valor guardado si no está en la lista.
+    public function opcionesHorasAnticipacion(): array
+    {
+        $opciones = array_unique(array_merge(self::HORAS_ANTICIPACION, [(int) $this->horas_anticipacion]));
+        sort($opciones);
+
+        return $opciones;
+    }
+
     protected function casts(): array
     {
         return [

@@ -3,7 +3,7 @@
      En pantallas pequeñas es un cajón que se abre con el botón de la barra superior (menuAbierto). --}}
 @php
     $usuarioMenu = Auth::user()->loadMissing(['persona.paciente', 'rol']);
-    // CU13 A1: el paciente gestiona sus propios contactos.
+    // CU13 A1 / CU28: el paciente gestiona sus propios contactos y su perfil.
     $verMisContactos = $usuarioMenu->persona->paciente !== null && Gate::allows('perfil.gestionar');
 @endphp
 
@@ -102,6 +102,11 @@
             @if ($verMisContactos)
                 <x-menu-enlace :href="route('vinculos-paciente.listar')" :active="request()->routeIs('vinculos-paciente.*')">
                     Mis contactos
+                </x-menu-enlace>
+
+                {{-- CU28 Gestionar perfil del paciente (perfil.gestionar y perfil de paciente) --}}
+                <x-menu-enlace :href="route('perfil.mostrar')" :active="request()->routeIs('perfil.*')">
+                    Mi perfil
                 </x-menu-enlace>
             @endif
         @endif

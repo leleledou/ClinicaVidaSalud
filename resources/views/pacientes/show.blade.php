@@ -99,9 +99,15 @@
             <div class="tarjeta space-y-4">
                 <div class="flex items-center justify-between">
                     <h2 class="tarjeta-titulo">Vínculos activos</h2>
-                    @canany(['vinculos.gestionar', 'vinculos.verificar'])
-                        <a href="{{ route('vinculos-paciente.listar', ['paciente_id' => $paciente->id]) }}" class="text-sm font-semibold text-teal-700 hover:underline">Gestionar vínculos</a>
-                    @endcanany
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        @canany(['vinculos.gestionar', 'vinculos.verificar'])
+                            <a href="{{ route('vinculos-paciente.listar', ['paciente_id' => $paciente->id]) }}" class="text-sm font-semibold text-teal-700 hover:underline">Gestionar vínculos</a>
+                        @endcanany
+                        {{-- CU24: pólizas de seguro del paciente (recepción con seguros.gestionar o seguros.verificar) --}}
+                        @canany(['seguros.gestionar', 'seguros.verificar'])
+                            <a href="{{ route('seguros-paciente.listar', ['paciente_id' => $paciente->id]) }}" class="text-sm font-semibold text-teal-700 hover:underline">Gestionar seguros</a>
+                        @endcanany
+                    </div>
                 </div>
                 @if ($persona->edad < $edadMayoria && ! $vinculos->contains(fn ($v) => $v->es_responsable_legal && $v->fecha_verificacion))
                     <div class="alerta-error font-medium">
