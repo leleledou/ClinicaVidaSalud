@@ -335,17 +335,19 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
     // CU34 Solicitar orden de laboratorio (RF-35): desde la consulta; solo su médico (lo revisa
     // LaboratorioService). Sin borrado (trigger): una orden SOLICITADA se anula.
     // delete = anular (RN11: no se borra).
+    // CU35 Registrar resultados de laboratorio (RF-36) y CU36 Revisar resultados y evolución (RF-37):
+    // lista y ficha de órdenes; qué órdenes ve cada uno lo decide OrdenLaboratorio::alcance (si no, 403).
     Route::prefix("ordenes-laboratorio")->controller(OrdenLaboratorioController::class)->group(function(){
+        Route::get('/','index')->name("ordenes-laboratorio.listar");
         Route::post('/','store')->name("ordenes-laboratorio.guardar");
         Route::post('/delete','delete')->name("ordenes-laboratorio.eliminar");
+        Route::get('/{id}','show')->whereNumber('id')->name("ordenes-laboratorio.mostrar");
     });
 
-    Route::prefix("resultados-laboratorio")->controller(ResultadoLaboratorioController::class)->group(function(){
-        Route::get('/','index')->name("resultados-laboratorio.listar");
+    // CU35 Registrar resultados de laboratorio (RF-36): store = registrar la toma de muestra y los valores.
+    // Sin update ni delete: el resultado no se modifica y su rango queda fijo (RN23, RN11).
+    Route::prefix("resultados-laboratorio")->middleware("can:laboratorio.cargar_resultados")->controller(ResultadoLaboratorioController::class)->group(function(){
         Route::post('/','store')->name("resultados-laboratorio.guardar");
-        Route::post('/update','update')->name("resultados-laboratorio.modificar");
-        Route::post('/delete','delete')->name("resultados-laboratorio.eliminar");
-        Route::get('/{id}','show')->name("resultados-laboratorio.mostrar");
     });
 
     // CU32 Gestionar tratamientos y prescripciones (RF-33). store = registrar (consulta EN_CURSO);

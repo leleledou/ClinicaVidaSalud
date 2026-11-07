@@ -31,6 +31,15 @@ class ResultadoLaboratorio extends Model
         "NO_APLICA" => ["No aplica", "insignia-inactivo"],
     ];
 
+    // CU35 paso 8 (RN24): interpretaciones que avisan al médico de inmediato.
+    public const CRITICAS = ["CRITICO_BAJO", "CRITICO_ALTO"];
+
+    // CU36 paso 4: color de cada punto del gráfico según la interpretación.
+    public const COLORES = [
+        "NORMAL" => "#0f766e", "BAJO" => "#d97706", "ALTO" => "#d97706",
+        "CRITICO_BAJO" => "#dc2626", "CRITICO_ALTO" => "#dc2626", "NO_APLICA" => "#64748b",
+    ];
+
     protected function casts(): array
     {
         return [
@@ -38,10 +47,40 @@ class ResultadoLaboratorio extends Model
         ];
     }
 
+    /**
+     * CU36 paso 4: todos los resultados de un parámetro de un paciente (de cualquier orden), en orden de
+     * fecha, con la orden y el rango aplicado (carga ansiosa).
+     */
+    public static function evolucion(int $pacienteId, int $parametroId)
+    {
+        return self::where("parametro_laboratorio_id", $parametroId)
+            ->whereHas("orden.consulta.cita", fn ($cita) => $cita->where("paciente_id", $pacienteId))
+            ->with(["orden", "rango", "parametro"])
+            ->orderBy("fecha_resultado")
+            ->orderBy("id")
+            ->get();
+    }
+
+    public function esCritico(): bool
+    {
+        return in_array($this->interpretacion, self::CRITICAS, true);
+    }
+
+    public function color(): string
+    {
+        return self::COLORES[$this->interpretacion] ?? self::COLORES["NO_APLICA"];
+    }
+
     // PRODUCE: la orden del resultado.
     public function orden()
     {
         return $this->belongsTo(OrdenLaboratorio::class, "orden_laboratorio_id");
+    }
+
+    // CARGA: el usuario que registró el resultado.
+    public function usuarioCarga()
+    {
+        return $this->belongsTo(Usuario::class, "usuario_carga_id");
     }
 
     // MEDIDO_EN: el parámetro medido.

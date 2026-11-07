@@ -92,7 +92,7 @@ class SeguridadSeeder extends Seeder
             'fichas.consultar', 'agenda.consultar', 'pacientes.gestionar', 'pacientes.buscar',
             'vinculos.gestionar', 'vinculos.verificar', 'seguros.gestionar', 'seguros.verificar',
             'citas.programar', 'citas.reprogramar', 'citas.cancelar', 'citas.confirmar',
-            'citas.registrar_asistencia', 'citas.historial_consultar', 'voz.usar',
+            'citas.registrar_asistencia', 'citas.historial_consultar', 'laboratorio.cargar_resultados', 'voz.usar',
         ],
         'MEDICO' => [
             'agenda.propia', 'fichas.consultar', 'pacientes.buscar', 'citas.registrar_asistencia',

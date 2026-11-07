@@ -227,7 +227,10 @@
                     <tbody>
                         @forelse ($consulta->ordenes as $orden)
                             <tr>
-                                <td class="whitespace-nowrap font-semibold">{{ $orden->codigo }}</td>
+                                <td class="whitespace-nowrap">
+                                    {{-- CU36 paso 2: ficha de la orden --}}
+                                    <a href="{{ route('ordenes-laboratorio.mostrar', $orden->id) }}" class="font-semibold text-marino-900 hover:text-teal-700 hover:underline">{{ $orden->codigo }}</a>
+                                </td>
                                 <td>{{ $orden->tipoExamen->nombre }}</td>
                                 <td>
                                     <span class="insignia {{ $orden->prioridad === 'URGENTE' ? 'insignia-cancelada' : 'insignia-inactivo' }}">{{ $prioridades[$orden->prioridad] ?? $orden->prioridad }}</span>

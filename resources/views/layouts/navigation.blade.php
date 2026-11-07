@@ -143,14 +143,29 @@
         @endif
 
         {{-- LABORATORIO --}}
-        @can('laboratorio.gestionar')
+        @canany(['laboratorio.gestionar', 'laboratorio.cargar_resultados', 'laboratorio.consultar_resultados', 'resultados.propios'])
             <x-menu-seccion>Laboratorio</x-menu-seccion>
 
             {{-- CU33 Gestionar catálogo de laboratorio --}}
-            <x-menu-enlace :href="route('tipos-examen.listar')" :active="request()->routeIs('tipos-examen.*')">
-                Catálogo de laboratorio
-            </x-menu-enlace>
-        @endcan
+            @can('laboratorio.gestionar')
+                <x-menu-enlace :href="route('tipos-examen.listar')" :active="request()->routeIs('tipos-examen.*')">
+                    Catálogo de laboratorio
+                </x-menu-enlace>
+            @endcan
+
+            {{-- CU35 Registrar resultados / CU36 Revisar resultados y evolución; el paciente ve «Mis resultados» --}}
+            @canany(['laboratorio.cargar_resultados', 'laboratorio.consultar_resultados'])
+                <x-menu-enlace :href="route('ordenes-laboratorio.listar')" :active="request()->routeIs('ordenes-laboratorio.*')">
+                    Órdenes de laboratorio
+                </x-menu-enlace>
+            @else
+                @can('resultados.propios')
+                    <x-menu-enlace :href="route('ordenes-laboratorio.listar')" :active="request()->routeIs('ordenes-laboratorio.*')">
+                        Mis resultados
+                    </x-menu-enlace>
+                @endcan
+            @endcanany
+        @endcanany
 
         {{-- CATÁLOGOS --}}
         @canany(['especialidades.gestionar', 'medicos.gestionar', 'consultorios.gestionar', 'horarios.gestionar', 'bloqueos.gestionar', 'aseguradoras.gestionar'])

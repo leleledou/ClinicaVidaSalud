@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Carbon\CarbonInterface;
 
 class RangoReferencia extends Model
 {
@@ -60,6 +61,47 @@ class RangoReferencia extends Model
             ->when($idIgnorar, fn ($consulta) => $consulta->where("id", "<>", $idIgnorar))
             ->orderBy("edad_min_meses")
             ->first();
+    }
+
+    // CU35 paso 6: meses cumplidos entre el nacimiento y la fecha (como RegistroClinico::edadMeses).
+    public static function edadMeses(CarbonInterface $nacimiento, CarbonInterface $fecha): int
+    {
+        $diferencia = $nacimiento->copy()->startOfDay()->diff($fecha->copy()->startOfDay());
+
+        return $diferencia->y * 12 + $diferencia->m;
+    }
+
+    /**
+     * CU35 paso 6 (RN23): rango aplicable, como RegistroClinico::rango: el del parámetro, vigente en la
+     * fecha, cuya banda de edad contiene la edad en meses del paciente en esa fecha y cuyo sexo es el del
+     * paciente o NULL (ambos). Los rangos no se cruzan (ex_rangos_referencia_solape): hay uno o ninguno.
+     */
+    public static function aplicable(int $parametroId, CarbonInterface $nacimiento, ?string $sexo, CarbonInterface $fecha): ?self
+    {
+        $meses = self::edadMeses($nacimiento, $fecha);
+        $dia = $fecha->toDateString();
+
+        return self::where("parametro_laboratorio_id", $parametroId)
+            ->where("edad_min_meses", "<=", $meses)
+            ->where("edad_max_meses", ">=", $meses)
+            ->where(fn ($s) => $s->whereNull("sexo")->when($sexo !== null, fn ($o) => $o->orWhere("sexo", $sexo)))
+            ->whereDate("vigente_desde", "<=", $dia)
+            ->where(fn ($v) => $v->whereNull("vigente_hasta")->orWhereDate("vigente_hasta", ">=", $dia))
+            ->orderBy("id")
+            ->first();
+    }
+
+    // CU35 paso 6: interpretación de un valor con este rango; los límites críticos se evalúan primero
+    // (como RegistroClinico::interpretar).
+    public function interpretar(float $valor): string
+    {
+        return match (true) {
+            $this->critico_min !== null && $valor < (float) $this->critico_min => "CRITICO_BAJO",
+            $this->critico_max !== null && $valor > (float) $this->critico_max => "CRITICO_ALTO",
+            $this->valor_min !== null && $valor < (float) $this->valor_min => "BAJO",
+            $this->valor_max !== null && $valor > (float) $this->valor_max => "ALTO",
+            default => "NORMAL",
+        };
     }
 
     // CU33 paso 3: edad en meses con su equivalente («216 meses = 18 años», «18 meses = 1 año y 6 meses»).
