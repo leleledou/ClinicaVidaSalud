@@ -18,9 +18,10 @@ use RuntimeException;
  *
  *  - Pacientes PAC-000018 a PAC-000211 (211 con los 17 de la demo): 34 menores con
  *    responsable legal verificado, 37 adultos mayores, 78 usuarios en total.
- *  - Fichas de la semana -8 a la +2 y 584 citas CM-000101 a CM-000684 (615 con las
+ *  - Fichas de la semana -8 a la +2 y 576 citas desde CM-000101 (615 con las 39
  *    de la demo), con la distribución de estados del documento:
  *    ATENDIDA 375, CANCELADA 66, CONFIRMADA 31, INASISTENCIA 60, PROGRAMADA 83.
+ *  - Una de cada cuatro cuentas activó las notificaciones push (recordatorios por PUSH).
  *
  * Determinista: Faker y mt_rand usan semillas fijas.
  *
@@ -57,9 +58,12 @@ class PoblacionExtendidaSeeder extends Seeder
     private const SEMILLA = 20261024;
     private const REPROGRAMACIONES = 17;
 
-    /** Objetivo de citas extendidas por estado (demo + extendida = distribución del PUDS-UML). */
+    /**
+     * Objetivo de citas extendidas por estado (demo + extendida = distribución del PUDS-UML).
+     * La demo aporta 19 ATENDIDAS (11 del Ciclo 1 y 8 de ClinicaDemoSeeder).
+     */
     private const OBJETIVO = [
-        'ATENDIDA' => 364, 'INASISTENCIA' => 57, 'CANCELADA' => 64,
+        'ATENDIDA' => 356, 'INASISTENCIA' => 57, 'CANCELADA' => 64,
         'PROGRAMADA' => 70, 'CONFIRMADA' => 29,
     ];
 
@@ -174,6 +178,8 @@ class PoblacionExtendidaSeeder extends Seeder
             if ($usuario !== null) {
                 Siembra::usuario($personaId, 'PACIENTE', $usuario, "{$usuario}@vidasalud.test", $hash, [
                     'correo_verificado_en' => Siembra::ts($registro->addMinutes(10)),
+                    'notificar_por_push' => $i % 4 === 0,
+                    'suscripcion_push' => $i % 4 === 0 ? PacienteDemoSeeder::suscripcionPush($usuario) : null,
                 ]);
             }
 

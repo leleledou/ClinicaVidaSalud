@@ -67,6 +67,18 @@ class PacienteDemoSeeder extends Seeder
         ['PAC-000017', 'Mateo', 'Terrazas', 'Gil', 'M', [7, 60], ['CERTIFICADO_NACIMIENTO', 'CN-0003', null], 'REC-001', null, 'AB_NEG', 50], // menor; su madre Roxana tiene cuenta
     ];
 
+    /** Cuentas que activaron las notificaciones push (reciben los recordatorios por PUSH). */
+    private const CON_PUSH = ['lanez', 'vsuarez', 'rpena'];
+
+    /** Suscripción push ficticia (el endpoint no existe; solo identifica el dispositivo de prueba). */
+    public static function suscripcionPush(string $usuario): string
+    {
+        return json_encode([
+            'endpoint' => "https://push.vidasalud.test/suscripciones/{$usuario}",
+            'keys' => ['p256dh' => 'clave-de-prueba', 'auth' => 'auth-de-prueba'],
+        ], JSON_UNESCAPED_SLASHES);
+    }
+
     /** Personas que no son pacientes: responsables legales y contactos de emergencia. */
     private const RESPONSABLES = [
         'G1' => ['Teresa', 'Condori', 'Flores', 'F', '1988-02-20', '9920001'],
@@ -171,8 +183,11 @@ class PacienteDemoSeeder extends Seeder
                 $cuenta = $opciones['cuenta'] ?? [];
                 // Por defecto el correo queda verificado a los 10 minutos del alta; con
                 // `correo_pendiente` sigue sin verificar (el paciente aún no puede reservar en línea).
+                $push = in_array($usuario, self::CON_PUSH, true);
                 $extra = [
                     'notificar_por_correo' => true,
+                    'notificar_por_push' => $push,
+                    'suscripcion_push' => $push ? self::suscripcionPush($usuario) : null,
                     'correo_verificado_en' => isset($cuenta['correo_pendiente']) ? null : Siembra::ts($registro->addMinutes(10)),
                 ];
                 if (isset($cuenta['intentos_fallidos'])) {

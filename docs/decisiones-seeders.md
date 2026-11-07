@@ -1,8 +1,10 @@
-# Decisiones de los seeders — Clínica Vida Salud (Ciclo 1)
+# Decisiones de los seeders — Clínica Vida Salud (Ciclo 1 y datos clínicos del Ciclo 2)
 
 ## Estado de verificación (leer primero)
 
-Los seeders **todavía no se han ejecutado en PostgreSQL**. Lo verificado hasta ahora:
+**Actualización (07/11/2026):** los seeders ya se ejecutaron en PostgreSQL local con `migrate:fresh --seed` (perfil extendido), sin errores. Después se repitió `db:seed` dos veces sobre la misma base sin ningún duplicado. Las comprobaciones SQL de los datos clínicos están en §18.5. El resto de esta sección describe la verificación previa, hecha en memoria antes de tener PostgreSQL.
+
+Antes de esa ejecución, lo verificado era:
 
 - **Estático:** `php -l` de todos los archivos, carga de clases, nombres de tablas y columnas contra las migraciones, conteos de catálogos y solapes de horarios.
 - **Simulación en memoria (SQLite `:memory:`, sin PostgreSQL):** se cargaron las 40 migraciones reales, se ejecutaron los tres perfiles y sus repeticiones, y se validaron los datos. Evaluó **78 de los 79 CHECK reales** (el restante, `ck_horarios_duracion_divide`, se comprobó aparte), claves foráneas, unicidad de documentos y de citas activas por ficha, y toda UPDATE/DELETE de la siembra estaba bloqueada por triggers de prueba.
@@ -31,28 +33,35 @@ Todos usan `DB::table()` (aún no hay modelos Eloquent), transacciones y claves 
 
 | Seeder | Tablas | Notas |
 |---|---|---|
-| `CatalogosSeeder` | — | orquesta los cinco siguientes |
+| `CatalogosSeeder` | — | orquesta los seis siguientes |
 | `SeguridadSeeder` | `roles`, `permisos`, `roles_permisos` | agrupados: la intermedia exige ambos catálogos |
 | `ConfiguracionSistemaSeeder` | `configuraciones_sistema` | `insertOrIgnore`: no pisa valores ya cambiados |
 | `EspecialidadSeeder`, `AseguradoraSeeder`, `ConsultorioSeeder` | sus tablas | |
+| `LaboratorioCatalogoSeeder` | `tipos_examen`, `parametros_laboratorio`, `rangos_referencia` | catálogo de laboratorio (§18.1) |
 | `UsuarioInicialSeeder` | `personas`, `administradores`, `usuarios` | único seeder de cuentas permitido en producción (ver §12) |
 | `Ciclo1DemoSeeder` | — | orquesta los cuatro siguientes |
 | `PersonalClinicaSeeder` | personas, administradores, recepcionistas, médicos, `medicos_especialidades`, usuarios | |
 | `PacienteDemoSeeder` | personas, pacientes, `historias_clinicas`, `vinculos_paciente`, `seguros_paciente`, usuarios | `historias_clinicas` se incluye porque CU10 la abre al registrar |
 | `AgendaSeeder` | `horarios_atencion`, `bloqueos_agenda`, `fichas` | |
 | `CitaDemoSeeder` | `citas`, `historiales_cita` | |
+| `ClinicaDemoSeeder` | antecedentes, alergias, consultas, laboratorio, tratamientos (+ 8 citas) | escenario clínico de la demo (§18.2) |
 | `PoblacionExtendidaSeeder` | las anteriores | **opcional**; nunca desde el perfil mínimo |
+| `ClinicaExtendidaSeeder` | antecedentes, alergias, consultas, laboratorio, tratamientos | atención de la población extendida (§18.1) |
+| `NotificacionSeeder` | `notificaciones` | derivada de citas y resultados; demo y extendido |
+| `BitacoraSeeder` | `bitacoras` | derivada de todo lo anterior; demo y extendido |
 | `DatabaseSeeder` | — | elige el perfil con `SEED_PERFIL` |
 
-Apoyo en `database/seeders/Support/`: `Siembra` (reloj y zona, búsqueda e inserción idempotente, contraseñas, guarda de producción), `AgendaFichas`, `RegistroCitas` (cita + historial, con validación previa) y `SiembraInvalida`.
+Apoyo en `database/seeders/Support/`: `Siembra` (reloj y zona, búsqueda e inserción idempotente, contraseñas, guarda de producción), `AgendaFichas`, `RegistroCitas` (cita + historial, con validación previa), `RegistroClinico` (consulta, orden, resultados y tratamiento, con validación previa), `CatalogoClinico` (diagnósticos, tratamientos, signos vitales y valores de laboratorio) y `SiembraInvalida`.
 
 El historial de una cita se inserta junto con ella porque `historiales_cita` es de solo inserción.
 
 ## 4. Orden de ejecución
 
-- **mínimo:** Seguridad → Configuración → Especialidad → Aseguradora → Consultorio → Usuario inicial.
-- **demo:** + Personal → Pacientes → Agenda (horarios → bloqueos → fichas) → Citas.
-- **extendido:** + pacientes → fichas de las semanas −8 a +2 → citas.
+- **mínimo:** Seguridad → Configuración → Especialidad → Aseguradora → Consultorio → Laboratorio → Usuario inicial.
+- **demo:** + Personal → Pacientes → Agenda (horarios → bloqueos → fichas) → Citas → Clínica demo → Notificaciones → Bitácora.
+- **extendido:** + Clínica demo → pacientes → fichas de las semanas −8 a +2 → citas → Clínica extendida → Notificaciones → Bitácora.
+
+Notificaciones y bitácora siempre van al final porque se derivan de todo lo sembrado antes.
 
 La simulación confirmó que cada seeder lanzado directamente falla con un mensaje claro si falta su dependencia, y que ninguno invoca otro perfil.
 
@@ -200,7 +209,7 @@ Limitaciones: (1) solo se probó con datos en memoria, no en PostgreSQL; (2) los
 **Garantizadas por PostgreSQL** (migraciones): RN01 (PK, código y persona únicos), RN02, RN08 (CHECK de que la duración divide el rango), RN09 (único parcial `ux_citas_ficha_activa`), RN11 (triggers de no borrado), RN14, RN23 (EXCLUDE y trigger de rangos; no sembrada).
 **Parcialmente cubiertas por PostgreSQL:** RN03 (FK; falta exigir médico activo), RN05 (FK ficha → horario; la rejilla no se valida), RN07 (trigger y EXCLUDE de horarios, y una cita activa por ficha), RN10 (no borrado y consulta finalizada; faltan las transiciones de estado), RN13 (el índice único hace de árbitro; falta la transacción), RN22 (único parcial de documento; no impone «solo un menor sin número»).
 **Respetadas únicamente por los datos de los seeders** (validadas por `RegistroCitas` y la simulación; **pendientes de implementar en Laravel**): RN04, RN06 (las citas atendidas, canceladas o con inasistencia son carga histórica), RN15, RN16, RN17, RN18, RN19, RN20, RN21 y RN25.
-**Pendientes sin datos ni base:** RN12 (permisos por ruta; no hay `fn_tiene_permiso` ni middleware) y RN24 (aviso de valor crítico, Ciclo 2).
+**Pendientes sin base:** RN12 (permisos por ruta; no hay `fn_tiene_permiso` ni middleware) y RN24 (aviso de valor crítico, Ciclo 2). RN24 ya tiene datos: tres valores críticos sembrados a propósito, con su aviso `VALOR_CRITICO` (§18.2). La lógica que genera el aviso sigue pendiente.
 
 Un conjunto de datos coherente no es una regla implementada: si una futura migración añade disparadores para RN06 o RN21, la carga histórica deberá revisarse.
 
@@ -211,7 +220,7 @@ Un conjunto de datos coherente no es una regla implementada: si una futura migra
 3. **Mecanismo `app.ahora`:** el documento simula un reloj en la base; **no existe** en nuestras migraciones (se comprobó). Las fechas pasadas se cargan como histórico directo.
 4. **Contraseña:** el documento fija una común; aquí se sustituye por variables de entorno.
 5. **Feriados:** el documento usa 24/09 y 02/11 absolutos; aquí son relativos (si no, colisionarían con las citas según el día de ejecución).
-6. **Datos clínicos** (consultas, laboratorio, notificaciones, bitácoras): no se siembran; son del Ciclo 2.
+6. **Datos clínicos** (historia clínica, consultas, laboratorio, tratamientos, notificaciones y bitácora): **sí se siembran**, aunque sus pantallas son del Ciclo 2. Son datos coherentes con las citas ya sembradas y con las restricciones de la base (§18). Las 12 tablas que antes quedaban vacías ahora tienen datos en los perfiles demo y extendido. El catálogo de laboratorio va en el perfil mínimo. Para conservar las cantidades del PUDS-UML (615 citas, 375 ATENDIDAS), las 8 citas ATENDIDAS de los casos clínicos de la demo se descuentan del objetivo de la población extendida (356 en vez de 364).
 7. **Cantidades:** `roles_permisos` 52 frente a 58; fichas bloqueadas 96 frente a 110; vínculos 90 frente a 95; personas 316 frente a 321.
 8. **UML:** 34 clases con `RolPermiso` explícita (las migraciones y `decisiones-implementacion.md` hablan de 33 clases + tabla intermedia: diferencia de representación, no estructural). Comentarios a corregir si usted lo autoriza: migración `100004` y `docs/decisiones-implementacion.md`.
 9. **`citas.origen`:** texto libre en la migración; se usan `RECEPCION` y `AUTOSERVICIO`.
@@ -241,7 +250,7 @@ Un conjunto de datos coherente no es una regla implementada: si una futura migra
 | CU19 Agenda médica | miércoles de la semana +1 del Dr. Pérez y las agendas de los médicos activos |
 | CU20 Historial | historial completo de Fernanda, Carlos, Pedro y el Dr. Pérez |
 
-Sin datos todavía (ver §16): `notificaciones` y `bitacoras`, que CU15 y CU17 mencionan en sus postcondiciones.
+`notificaciones` y `bitacoras`, que CU15 y CU17 mencionan en sus postcondiciones, ya tienen datos derivados de las citas y de su historial (§18).
 
 ## 16. Riesgos y decisiones pendientes
 
@@ -270,3 +279,87 @@ php artisan db:seed --class=CatalogosSeeder                      # un seeder sue
 ```
 
 Nunca `migrate:fresh` ni `db:wipe`. Los seeders no tienen reversa: para repetir una prueba se reconstruye la base de verificación.
+
+## 18. Datos clínicos (Ciclo 2)
+
+Desde noviembre de 2026 los seeders también llenan las 12 tablas clínicas que antes quedaban vacías. Las pantallas del Ciclo 2 ya tienen datos coherentes para mostrar.
+
+### 18.1 Seeders nuevos
+
+| Seeder | Perfil | Qué hace |
+|---|---|---|
+| `LaboratorioCatalogoSeeder` | mínimo | 8 exámenes (hemograma, glucosa, perfil lipídico, examen general de orina, creatinina, TSH, HbA1c, prueba de embarazo), 19 parámetros y 41 rangos de referencia por edad en **meses** y por sexo (`NULL` = ambos). La hemoglobina tiene rangos distintos para lactante, niño, adolescente, adulto hombre, adulta mujer y adulto mayor. La glucosa del adulto tiene una versión anterior cerrada (2023–2024) para demostrar la elección del rango por vigencia. |
+| `ClinicaDemoSeeder` | demo | Antecedentes y alergias de los 17 pacientes demo, 8 citas ATENDIDAS nuevas (CM-000032 a CM-000039) y una consulta FINALIZADA para cada una de las 19 citas ATENDIDAS de la demo, con sus órdenes, resultados y tratamientos. Contiene los casos de §18.2. |
+| `ClinicaExtendidaSeeder` | extendido | Antecedentes en ~50 % de los pacientes PAC-000018 a 211 (85 % en adultos mayores) y alergias en ~20 %. Consulta para ~70 % de las citas ATENDIDAS de la población extendida, con diagnóstico CIE-10 según la especialidad y el motivo, signos vitales según la edad, tratamiento cuando el diagnóstico lo pide y órdenes de laboratorio. Los pacientes de los casos guiados quedan fuera para que una consulta al azar no contradiga su evolución. |
+| `NotificacionSeeder` | demo y extendido | Avisos derivados del historial de cada cita, de los resultados y de los autorregistros (§18.3). |
+| `BitacoraSeeder` | demo y extendido | Registros de solo inserción derivados de todo lo anterior (§18.3). |
+
+Apoyo: `Support/RegistroClinico` valida e inserta consulta, orden con resultados y tratamiento. `Support/CatalogoClinico` reúne los diagnósticos por especialidad y motivo, los tratamientos con sus alternativas para alérgicos, los signos vitales por edad y la generación de valores a partir del rango. También se cambiaron `PacienteDemoSeeder` y `PoblacionExtendidaSeeder` para que algunas cuentas activen las notificaciones push y reciban los recordatorios por `PUSH`.
+
+### 18.2 Casos de demostración
+
+| Caso | Paciente | Recorrido |
+|---|---|---|
+| **Niño con hemoglobina baja** (pedido por la docente) | Pedro, PAC-000001, 8 años, con responsable legal verificado; Pediatría | CM-000032: Hb 9,6 g/dL **BAJO** → CM-000033: se indica sulfato ferroso (`tratamientos.resultado_laboratorio_id` = ese resultado) → CM-000034: Hb 10,6 **BAJO** → CM-000001: Hb 11,9 **NORMAL**. El tratamiento queda **FINALIZADO** con respuesta **MEJORO**. Cada control es una cita ATENDIDA con su consulta y su orden. |
+| **Adulto con glucosa alta** | Andrés, PAC-000006, 45 años; Medicina General | Glucosa en ayunas 182 mg/dL y HbA1c 7,9 % (**ALTO**) → metformina → 131 (**ALTO**) → 96 mg/dL (**NORMAL**). El tratamiento es crónico: sigue EN_CURSO con respuesta MEJORO. |
+| **Valor crítico 1** | Fernanda, PAC-000008, 68 años; Geriatría | Hemoglobina 6,6 g/dL **CRITICO_BAJO** (orden urgente). Se deriva a emergencias y se suspende el ácido acetilsalicílico. |
+| **Valor crítico 2** | Carlos, PAC-000004, 33 años en la fecha del resultado (34 hoy); Medicina General | Glucosa 486 mg/dL **CRITICO_ALTO** (debut diabético). Hospitalización de 48 h; tratamiento FINALIZADO con respuesta MEJORO. |
+| **Valor crítico 3** | Ricardo, PAC-000011, 52 años; Cardiología | Creatinina 4,6 mg/dL **CRITICO_ALTO** (el catálogo no tiene potasio). Se suspende el losartán y se deriva a nefrología. |
+| **Alergia a la penicilina** | Luciana, PAC-000005, alergia GRAVE (anafilaxia) | Su amigdalitis (CM-000011) se trata con **azitromicina**, sin ninguna penicilina. Mario (alérgico al ibuprofeno) recibe paracetamol y se le omite el diclofenaco de la pauta habitual. |
+
+Cada valor crítico genera un aviso `VALOR_CRITICO` al médico solicitante por `SISTEMA` y por `CORREO`, un registro `CARGAR_RESULTADOS` en la bitácora con el número de críticos y un tratamiento vinculado al resultado. La población extendida puede producir además algún crítico al azar (en la última ejecución, 2).
+
+### 18.3 Reglas que cumplen los datos
+
+`RegistroClinico` las valida **antes de escribir**. Un incumplimiento lanza `SiembraInvalida` y la transacción completa se revierte.
+
+- **Consultas:** solo para citas ATENDIDAS, una por cita (`cita_id` único) y con inicio y fin dentro del horario de la ficha. Se insertan ya FINALIZADAS y completas, porque `tg_consultas_finalizada_inmutable` impide editarlas. Los códigos CIE-10 son reales y el diagnóstico es acorde a la especialidad, la edad y el sexo. No hay consultas EN_CURSO: la agenda no genera fichas pasadas en la semana actual, así que ninguna cita está en curso.
+- **Laboratorio:** las órdenes salen de consultas y siguen la cronología solicitud → toma de muestra → resultado → revisión, sin fechas futuras. Solo las órdenes RESULTADO_LISTO o REVISADA llevan resultados, uno por parámetro. Algunas quedan SOLICITADAS, con MUESTRA_TOMADA o ANULADAS.
+- **Rango de referencia:** cada resultado numérico guarda el **único** rango vigente en la fecha del resultado para la edad en meses y el sexo del paciente en esa fecha. La interpretación (NORMAL, BAJO, ALTO, CRITICO_BAJO, CRITICO_ALTO) se calcula con ese rango, evaluando primero los límites críticos. Los parámetros de texto no llevan rango y se interpretan NO_APLICA. En una misma banda de edad nunca se mezcla un rango para ambos sexos con otro por sexo, así que solo hay un rango aplicable por paciente.
+- **Alergias:** no se prescribe ningún medicamento de la familia de una alergia activa del paciente (`RegistroClinico::FAMILIAS_ALERGIA`: penicilinas, AINE, sulfamidas, metamizol). Si el medicamento habitual está contraindicado, se usa su alternativa o se omite.
+- **Historia clínica:** los antecedentes son coherentes con la edad y el sexo (gineco-obstétricos solo en mujeres adultas, crónicos del adulto desde los 30 años). Unos 10 % de los pacientes conservan el grupo sanguíneo DESCONOCIDO.
+- **Notificaciones:** se reproduce lo que haría `CitaService`. CITA_PROGRAMADA, CITA_REPROGRAMADA y CITA_CANCELADA van al paciente (o a su responsable legal si es menor) y al médico. El RECORDATORIO_CITA se fija según las `horas_anticipacion` de la cuenta. RESULTADO_LISTO y VALOR_CRITICO van al médico solicitante y VERIFICAR_CORREO a cada autorregistro. Lo programado para el futuro queda PENDIENTE; lo pasado, ENVIADA o LEIDA, con algún envío FALLIDA (`intentos` > 0). Los recordatorios de una cita cancelada o reprogramada antes de enviarse quedan CANCELADA. `referencia_tipo` y `referencia_id` van siempre juntos.
+- **Bitácora:** solo inserción. Usa las mismas acciones que la aplicación (INICIO_SESION, LOGIN_FALLIDO con `exito = false`, CAMBIO_PASSWORD, CREAR_PACIENTE, PROGRAMAR/REPROGRAMAR/CANCELAR_CITA, CAMBIO_ESTADO_CITA, FINALIZAR_CONSULTA, CARGAR_RESULTADOS, etc.). El canal es WEB casi siempre, SISTEMA para las inasistencias y VOZ con `transcripcion_voz` para las citas gestionadas por voz. **Nunca** se guarda una contraseña ni su hash.
+- **Determinismo e idempotencia:** cada paciente y cada cita usan su propia semilla fija. Todo se reconoce por su clave natural (consulta por cita, orden por código, tratamiento por consulta y descripción, notificación por destinatario, tipo, canal, referencia y momento, bitácora por acción, usuario, registro y momento) y nada existente se modifica.
+
+### 18.4 Tamaño de cada tabla en el perfil extendido
+
+Resultado de `migrate:fresh --seed` del 07/11/2026. Las fichas, los estados de órdenes y notificaciones, la bitácora y los críticos al azar dependen del día de ejecución.
+
+| Tabla | Filas | Tabla | Filas | Tabla | Filas |
+|---|---:|---|---:|---|---:|
+| administradores | 2 | alergias | 51 | antecedentes | 204 |
+| aseguradoras | 3 | bitacoras | 3 728 | bloqueos_agenda | 4 |
+| citas | 615 | configuraciones_sistema | 10 | consultas | 274 |
+| consultorios | 8 | especialidades | 6 | fichas | 2 651 |
+| historiales_cita | 1 407 | historias_clinicas | 211 | horarios_atencion | 31 |
+| medicos | 12 | medicos_especialidades | 14 | notificaciones | 2 243 |
+| ordenes_laboratorio | 168 | pacientes | 211 | parametros_laboratorio | 19 |
+| permisos | 41 | personas | 316 | prescripciones | 166 |
+| rangos_referencia | 41 | recepcionistas | 3 | resultados_laboratorio | 408 |
+| roles | 4 | roles_permisos | 52 | seguros_paciente | 54 |
+| tipos_examen | 8 | tratamientos | 158 | usuarios | 78 |
+| vinculos_paciente | 90 | | | | |
+
+Detalle:
+- **Citas:** ATENDIDA 375, CANCELADA 66, CONFIRMADA 31, INASISTENCIA 60, PROGRAMADA 83. La demo tiene ahora 39 citas.
+- **Consultas:** 274, es decir el 73 % de las atendidas (19 de la demo y 255 de la extendida).
+- **Órdenes:** 117 REVISADA, 34 RESULTADO_LISTO, 10 MUESTRA_TOMADA, 4 SOLICITADA y 3 ANULADA.
+- **Tratamientos:** 78 FINALIZADO, 74 EN_CURSO y 6 SUSPENDIDO.
+- **Notificaciones:** 1 264 LEIDA, 765 ENVIADA, 114 PENDIENTE, 84 CANCELADA y 16 FALLIDA.
+- **Bitácora:** 3 605 WEB, 63 VOZ y 60 SISTEMA.
+
+En el perfil demo: 39 citas (19 ATENDIDAS), 19 consultas, 22 órdenes, 51 resultados (3 críticos), 11 tratamientos, 163 notificaciones y 356 registros de bitácora.
+
+### 18.5 Comprobaciones SQL (perfil extendido)
+
+Todas dan 0 tras `migrate:fresh --seed` y tras dos `db:seed` repetidos, que no añaden ninguna fila:
+
+- resultados numéricos cuyo rango no es el único aplicable a la edad en meses, el sexo y la fecha (0 de 353), e interpretaciones que no coinciden con ese rango;
+- resultados de texto con rango o con interpretación distinta de NO_APLICA;
+- consultas de citas no ATENDIDAS, fuera del horario de la ficha o no finalizadas (0 de 274);
+- prescripciones de un medicamento de la familia de una alergia activa del paciente (0 de 166);
+- resultados en órdenes sin resultado y órdenes con resultados incompletos;
+- antecedentes gineco-obstétricos fuera de mujeres adultas;
+- contraseñas (`password`, `contrase`, `$2y$`) en `datos_anteriores` o `datos_nuevos` de la bitácora, y transcripción de voz sin canal VOZ;
+- registros de bitácora o resultados con fecha futura.

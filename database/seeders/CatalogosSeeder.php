@@ -18,6 +18,7 @@ class CatalogosSeeder extends Seeder
             EspecialidadSeeder::class,
             AseguradoraSeeder::class,
             ConsultorioSeeder::class,
+            LaboratorioCatalogoSeeder::class,
         ]);
     }
 }
