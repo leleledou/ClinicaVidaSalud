@@ -177,4 +177,59 @@ class Paciente extends Model
     {
         return self::whereKey($this->id)->whereExists(self::citasConMedico($medicoId))->exists();
     }
+
+    // CU29 / CU30: perfil de médico ACTIVO del usuario con historia.consultar (null si no lo tiene).
+    public static function medicoClinico(Usuario $usuario): ?Medico
+    {
+        $medico = $usuario->persona?->medico;
+
+        return $usuario->tienePermiso("historia.consultar") && $medico?->estado === "ACTIVO" ? $medico : null;
+    }
+
+    /**
+     * CU29 / CU30 (RF-31): única regla de acceso a la historia clínica. "medico": historia.consultar,
+     * perfil de médico ACTIVO y el paciente tiene o tuvo cita con él (como CU11 A1 y CU20).
+     * "paciente": historia.propia y es el propio paciente o un menor a su cargo (como CU20 A1).
+     * null: sin acceso (403).
+     */
+    public function accesoClinico(Usuario $usuario): ?string
+    {
+        $medico = self::medicoClinico($usuario);
+        if ($medico && $this->tuvoCitaCon($medico->id)) {
+            return "medico";
+        }
+        if ($usuario->tienePermiso("historia.propia") && self::aCargoDe($usuario->persona)->contains("id", $this->id)) {
+            return "paciente";
+        }
+
+        return null;
+    }
+
+    // CU30 paso 3: consultas FINALIZADAS del paciente, la más reciente primero, con médico, especialidad,
+    // tratamientos y prescripciones (carga ansiosa, sin N+1).
+    public function consultasFinalizadas()
+    {
+        return Consulta::whereHas("cita", fn ($cita) => $cita->where("paciente_id", $this->id))
+            ->where("estado", "FINALIZADA")
+            ->with([
+                "cita.ficha.horario.medicoEspecialidad.medico.persona",
+                "cita.ficha.horario.medicoEspecialidad.especialidad",
+                "tratamientos" => fn ($tratamiento) => $tratamiento->orderBy("fecha_inicio")->orderBy("id"),
+                "tratamientos.prescripciones",
+            ])
+            ->orderByDesc("inicio")
+            ->orderByDesc("id");
+    }
+
+    // CU30 paso 3: resultados de laboratorio del paciente, los más recientes primero, con examen,
+    // parámetro y rango aplicado (carga ansiosa).
+    public function resultadosLaboratorio()
+    {
+        return ResultadoLaboratorio::whereHas("orden.consulta.cita", fn ($cita) => $cita->where("paciente_id", $this->id))
+            ->with(["orden.tipoExamen", "parametro", "rango"])
+            ->join("parametros_laboratorio", "parametros_laboratorio.id", "=", "resultados_laboratorio.parametro_laboratorio_id")
+            ->select("resultados_laboratorio.*")
+            ->orderByDesc("resultados_laboratorio.fecha_resultado")
+            ->orderBy("parametros_laboratorio.orden");
+    }
 }

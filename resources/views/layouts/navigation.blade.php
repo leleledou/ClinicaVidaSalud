@@ -5,6 +5,9 @@
     $usuarioMenu = Auth::user()->loadMissing(['persona.paciente', 'rol']);
     // CU13 A1 / CU28: el paciente gestiona sus propios contactos y su perfil.
     $verMisContactos = $usuarioMenu->persona->paciente !== null && Gate::allows('perfil.gestionar');
+    // CU30: el médico (historia.consultar y perfil de médico ACTIVO) ve «Mis pacientes»; el paciente, «Mi cardex».
+    $verMisPacientes = \App\Models\Paciente::medicoClinico($usuarioMenu) !== null;
+    $verMiCardex = ! $verMisPacientes && Gate::allows('historia.propia');
 @endphp
 
 <!-- Fondo oscuro detrás del cajón (celular y tablet) -->
@@ -116,6 +119,16 @@
                     Mi perfil
                 </x-menu-enlace>
             @endif
+        @endif
+
+        {{-- ATENCIÓN CLÍNICA --}}
+        @if ($verMisPacientes || $verMiCardex)
+            <x-menu-seccion>Atención clínica</x-menu-seccion>
+
+            {{-- CU30 Consultar cardex: médico («Mis pacientes») o paciente («Mi cardex») --}}
+            <x-menu-enlace :href="route('historias-clinicas.listar')" :active="request()->routeIs('historias-clinicas.*')">
+                {{ $verMisPacientes ? 'Mis pacientes' : 'Mi cardex' }}
+            </x-menu-enlace>
         @endif
 
         {{-- CATÁLOGOS --}}

@@ -275,28 +275,27 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/{id}','show')->whereNumber('id')->name("historiales-cita.mostrar");
     });
 
+    // CU30 Consultar cardex (RF-31) y CU29 Gestionar historia clínica (RF-30). El acceso (médico con
+    // cita o el paciente y los menores a su cargo) lo revisa Paciente::accesoClinico. /{id} = id del paciente.
+    // La historia no se crea aquí (la abre CU10) ni se elimina.
     Route::prefix("historias-clinicas")->controller(HistoriaClinicaController::class)->group(function(){
         Route::get('/','index')->name("historias-clinicas.listar");
-        Route::post('/','store')->name("historias-clinicas.guardar");
         Route::post('/update','update')->name("historias-clinicas.modificar");
-        Route::post('/delete','delete')->name("historias-clinicas.eliminar");
-        Route::get('/{id}','show')->name("historias-clinicas.mostrar");
+        Route::get('/{id}','show')->whereNumber('id')->name("historias-clinicas.mostrar");
     });
 
+    // CU29: antecedentes de la historia. delete = dar de baja (vigente = false; no se borran).
     Route::prefix("antecedentes")->controller(AntecedenteController::class)->group(function(){
-        Route::get('/','index')->name("antecedentes.listar");
         Route::post('/','store')->name("antecedentes.guardar");
         Route::post('/update','update')->name("antecedentes.modificar");
         Route::post('/delete','delete')->name("antecedentes.eliminar");
-        Route::get('/{id}','show')->name("antecedentes.mostrar");
     });
 
+    // CU29: alergias de la historia. delete = dar de baja (activa = false; no se borran).
     Route::prefix("alergias")->controller(AlergiaController::class)->group(function(){
-        Route::get('/','index')->name("alergias.listar");
         Route::post('/','store')->name("alergias.guardar");
         Route::post('/update','update')->name("alergias.modificar");
         Route::post('/delete','delete')->name("alergias.eliminar");
-        Route::get('/{id}','show')->name("alergias.mostrar");
     });
 
     Route::prefix("consultas")->controller(ConsultaController::class)->group(function(){

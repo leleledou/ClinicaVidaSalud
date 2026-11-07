@@ -21,4 +21,22 @@ class OrdenLaboratorio extends Model
         "archivo_resultado",
         "fecha_revision"
     ];
+
+    // SOLICITA: la consulta que pidió la orden.
+    public function consulta()
+    {
+        return $this->belongsTo(Consulta::class, "consulta_id");
+    }
+
+    // PEDIDO_EN: el tipo de examen.
+    public function tipoExamen()
+    {
+        return $this->belongsTo(TipoExamen::class, "tipo_examen_id");
+    }
+
+    // PRODUCE: resultados por parámetro.
+    public function resultados()
+    {
+        return $this->hasMany(ResultadoLaboratorio::class, "orden_laboratorio_id");
+    }
 }

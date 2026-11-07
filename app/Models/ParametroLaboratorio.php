@@ -16,4 +16,10 @@ class ParametroLaboratorio extends Model
         "tipo_valor",
         "orden"
     ];
+
+    // MIDE: el tipo de examen del parámetro.
+    public function tipoExamen()
+    {
+        return $this->belongsTo(TipoExamen::class, "tipo_examen_id");
+    }
 }
