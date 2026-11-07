@@ -6,7 +6,7 @@
 
 import { mostrarErrores } from './personas';
 
-// CU15 paso 3 / CU16 paso 3 (RF06): SOLO las fichas disponibles del médico en la especialidad y la fecha.
+// CU15 paso 3 / CU16 paso 3 (RF-21): SOLO las fichas disponibles del médico en la especialidad y la fecha.
 // Respuesta: { fichas: [...], proxima: { fecha, texto } | null } (mejora b: el próximo día disponible).
 async function pedirFichas(url, medicoId, especialidadId, fecha) {
     const parametros = new URLSearchParams({ medico_id: medicoId, especialidad_id: especialidadId, fecha });
@@ -200,7 +200,7 @@ export function formularioCita(config) {
             this.resumen = false;
         },
 
-        // CU15 paso 3 / RF06: SOLO las fichas disponibles del médico en esa fecha.
+        // CU15 paso 3 / RF-21: SOLO las fichas disponibles del médico en esa fecha.
         async cargarFichas(preseleccion = '') {
             this.limpiarFichas();
             if (! this.especialidadId || ! this.medicoId || ! this.fecha) return;

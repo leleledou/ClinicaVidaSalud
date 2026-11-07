@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * CU01 Iniciar sesión y CU02 Cerrar sesión (RF01).
+ * CU01 Iniciar sesión y CU02 Cerrar sesión (RF-01, RF-02).
  */
 class LoginController extends Controller
 {

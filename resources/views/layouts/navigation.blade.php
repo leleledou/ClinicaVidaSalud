@@ -1,4 +1,4 @@
-{{-- Menú lateral (RF01: menú según los permisos). Cada opción se protege con su @can / @if y cada
+{{-- Menú lateral (RF-05: menú según los permisos). Cada opción se protege con su @can / @if y cada
      sección se muestra solo si el usuario puede ver al menos una de sus opciones.
      En pantallas pequeñas es un cajón que se abre con el botón de la barra superior (menuAbierto). --}}
 @php
@@ -40,10 +40,10 @@
             Panel
         </x-menu-enlace>
 
-        {{-- CITAS: la disponibilidad es pública, así que la sección siempre tiene al menos una opción --}}
+        {{-- CITAS --}}
         <x-menu-seccion>Citas</x-menu-seccion>
 
-        {{-- CU14 Consultar disponibilidad de fichas (pública) --}}
+        {{-- CU14 Consultar disponibilidad de fichas (paciente y recepcionista) --}}
         <x-menu-enlace :href="route('fichas.disponibilidad')" :active="request()->routeIs('fichas.*')">
             Médicos y horarios
         </x-menu-enlace>

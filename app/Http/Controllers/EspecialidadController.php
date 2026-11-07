@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
- * CU06 Gestionar especialidades (RF04). Requiere el permiso especialidades.gestionar.
+ * CU06 Gestionar especialidades (RF-08). Requiere el permiso especialidades.gestionar.
  * No hay borrado físico (RN11): desactivar cambia el estado a INACTIVO.
  */
 class EspecialidadController extends Controller

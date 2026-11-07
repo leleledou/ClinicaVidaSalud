@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
  * configuraciones_sistema (clave primaria = clave, sin id).
  *
  * Las seis primeras claves están respaldadas por el PUDS-UML (RN15-RN21,
- * RF08 y fn_config_int). Las cuatro restantes se marcan «[PROPUESTA]» en su
+ * RF-23 y fn_config_int). Las cuatro restantes se marcan «[PROPUESTA]» en su
  * descripción porque el documento habla de ellas (bloqueo de sesión, semanas de
  * fichas) sin fijar el valor: requieren confirmación antes de considerarse
  * requisito aprobado.
@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
 class ConfiguracionSistemaSeeder extends Seeder
 {
     private const PARAMETROS = [
-        ['max_reprogramaciones', '2', 'int', 'Máximo de reprogramaciones de una cita con el mismo médico (RN18, RF08).'],
+        ['max_reprogramaciones', '2', 'int', 'Máximo de reprogramaciones de una cita con el mismo médico (RN18, RF-23).'],
         ['edad_mayoria', '18', 'int', 'Edad de mayoría: por debajo se exige responsable legal verificado (RN16, RN22).'],
         ['tolerancia_inasistencia_min', '15', 'int', 'Minutos de tolerancia antes de poder registrar una inasistencia (RN21).'],
         ['max_inasistencias_autoreserva', '3', 'int', 'Inasistencias que bloquean la reserva en línea (RN19).'],

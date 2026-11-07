@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
- * CU09 Gestionar horarios de atención (RF05, RN05, RN07, RN08). Requiere horarios.gestionar.
+ * CU09 Gestionar horarios de atención (RF-11, RN05, RN07, RN08). Requiere horarios.gestionar.
  * Un horario no se edita (A1): se cierra su vigencia y se registra uno nuevo. Las fichas las
  * calcula AgendaService.
  */
@@ -335,7 +335,7 @@ class HorarioAtencionController extends Controller
             "hora_inicio" => ["required", "date_format:H:i"],
             "hora_fin" => [
                 "bail", "required", "date_format:H:i",
-                // RF05: la hora final es posterior a la inicial.
+                // RF-11: la hora final es posterior a la inicial.
                 function (string $atributo, mixed $valor, \Closure $fallar) {
                     $inicio = request()->input("hora_inicio");
                     if (is_string($inicio) && preg_match("/^\d{2}:\d{2}$/", $inicio) && $valor <= $inicio) {

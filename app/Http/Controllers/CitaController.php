@@ -20,8 +20,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\MessageBag;
 
 /**
- * CU15 Programar cita (RF06, RF07), CU16 Reprogramar cita (RF08), CU17 Cancelar cita (RF09), CU18
- * Registrar asistencia (RF10) y CU19 Consultar agenda médica (RF11). Recepción con citas.programar /
+ * CU15 Programar cita (RF-21, RF-22), CU16 Reprogramar cita (RF-23), CU17 Cancelar cita (RF-24), CU18
+ * Registrar asistencia (RF-25) y CU19 Consultar agenda médica (RF-26). Recepción con citas.programar /
  * reprogramar / cancelar / confirmar / registrar_asistencia, el médico con citas.registrar_asistencia
  * y agenda.propia (solo sus citas) y el paciente con citas.autoservicio (sus citas o las de los menores
  * a su cargo). Las reglas de negocio están en CitaService; aquí se valida el formato y se responde.
@@ -33,7 +33,7 @@ class CitaController extends Controller
     }
 
     /**
-     * CU19 Consultar agenda médica (RF11, §3.2, §3.3): las fichas de un médico en una fecha, con sus
+     * CU19 Consultar agenda médica (RF-26, §3.2, §3.3): las fichas de un médico en una fecha, con sus
      * citas (también las canceladas), los totales por estado y los botones de CU18.
      * agenda.consultar: cualquier médico; agenda.propia: solo la suya (se ignora ?medico_id=).
      */
@@ -107,7 +107,7 @@ class CitaController extends Controller
             ->get()
             ->groupBy("ficha_id");
 
-        // CU19 A1 (RF11): el motivo solo lo ven el médico de la cita y recepción (citas.programar).
+        // CU19 A1 (RF-26): el motivo solo lo ven el médico de la cita y recepción (citas.programar).
         $verMotivo = Gate::allows("citas.programar") || $propio?->id === $medico->id;
 
         $filas = [];
@@ -261,7 +261,7 @@ class CitaController extends Controller
         return redirect()->route("citas.mostrar", $cita->id)->with("exito", "Cita {$cita->codigo} registrada.");
     }
 
-    // RF06: detalle de la cita y su historial. CU16 pasos 1–4, CU17 pasos 2–3 y CU18 paso 2: los
+    // RF-27: detalle de la cita y su historial. CU16 pasos 1–4, CU17 pasos 2–3 y CU18 paso 2: los
     // botones y formularios de las acciones válidas (accionesPermitidas).
     public function show(Request $request, $id)
     {
@@ -388,7 +388,7 @@ class CitaController extends Controller
         return back()->with("exito", "Cita {$cita->codigo}: " . mb_strtolower($cita->estado) . ".");
     }
 
-    // CU15 paso 3 (JSON): SOLO las fichas disponibles del médico en la especialidad y la fecha (RF06).
+    // CU15 paso 3 (JSON): SOLO las fichas disponibles del médico en la especialidad y la fecha (RF-21).
     public function fichasDisponibles(Request $request)
     {
         $this->modo();
@@ -519,7 +519,7 @@ class CitaController extends Controller
             ])->values()->all();
     }
 
-    // RF06: quién ve una cita. citas.programar o citas.historial_consultar (el médico solo sus
+    // RF-27: quién ve una cita. citas.programar o citas.historial_consultar (el médico solo sus
     // citas, como en CU11 A1), o el paciente dueño / su responsable legal verificado.
     private function autorizarVer(Request $request, Cita $cita): void
     {

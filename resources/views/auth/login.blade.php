@@ -49,12 +49,10 @@
         </x-primary-button>
     </form>
 
-    {{-- CU12 Autorregistrarse como paciente / CU14 consulta pública de médicos y horarios --}}
+    {{-- CU12 Autorregistrarse como paciente --}}
     <p class="mt-6 text-center text-sm text-slate-600">
         ¿Paciente nuevo?
         <a href="{{ route('registro') }}" class="font-semibold text-teal-700 hover:underline">Cree su cuenta</a>
-        <span class="mx-1 text-slate-300">·</span>
-        <a href="{{ route('fichas.disponibilidad') }}" class="font-semibold text-teal-700 hover:underline">Ver médicos y horarios</a>
     </p>
 
     {{-- CU01 paso 2: validación en el navegador, ambos campos obligatorios.

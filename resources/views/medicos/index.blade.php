@@ -1,4 +1,4 @@
-{{-- CU07 Gestionar médicos (RF03): búsqueda, lista y formulario de registrar/modificar en la misma página. --}}
+{{-- CU07 Gestionar médicos (RF-09): búsqueda, lista y formulario de registrar/modificar en la misma página. --}}
 @php
     // Campos del formulario: si el servidor devolvió errores en alguno, se vuelve a abrir con lo escrito.
     $camposFormulario = ['tipo_documento', 'numero_documento', 'complemento', 'expedido', 'nombres', 'apellido_paterno', 'apellido_materno',
@@ -68,7 +68,7 @@
                 </div>
             @endif
 
-            {{-- RF03: buscar por nombre o especialidad --}}
+            {{-- RF-09: buscar por nombre o especialidad --}}
             <div class="tarjeta">
                 <h2 class="tarjeta-titulo">Filtros</h2>
                 <form method="GET" action="{{ route('medicos.listar') }}" class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 lg:grid-cols-3">

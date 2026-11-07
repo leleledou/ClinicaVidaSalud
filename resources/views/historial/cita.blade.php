@@ -1,4 +1,4 @@
-{{-- CU20 pasos 4 y 5: trazabilidad de una cita (RF09, RF12): sus datos y la línea de tiempo de
+{{-- CU20 pasos 4 y 5: trazabilidad de una cita (RF-27): sus datos y la línea de tiempo de
      historiales_cita en orden cronológico (solo inserción: nada se borra ni se modifica, RN10). --}}
 @php
     $ficha = $cita->ficha;

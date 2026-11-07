@@ -1,4 +1,4 @@
-{{-- CU09 Gestionar horarios de atención (RF05): médico, grilla semanal, historial y formulario en la misma página. --}}
+{{-- CU09 Gestionar horarios de atención (RF-11): médico, grilla semanal, historial y formulario en la misma página. --}}
 @php
     $campos = ['medico_especialidad_id', 'dia_semana', 'hora_inicio', 'hora_fin', 'duracion_ficha_min', 'modalidad', 'consultorio_id', 'vigente_desde', 'vigente_hasta'];
     $volvioFormulario = $errors->hasAny($campos);
@@ -191,7 +191,7 @@
                                     @if ($volvioFormulario) <x-input-error :messages="$errors->get('duracion_ficha_min')" class="mt-2" /> @endif
                                 </div>
                             </div>
-                            {{-- RF05 / RN08: cuántas fichas salen por día --}}
+                            {{-- RF-11 / RN08: cuántas fichas salen por día --}}
                             <p class="text-sm" :class="resumen.ok ? 'text-green-700' : 'text-slate-500'" x-text="resumen.texto"></p>
 
                             {{-- CU09 paso 6: modalidad y consultorio --}}
@@ -290,7 +290,7 @@
             return /^\d{2}:\d{2}$/.test(hora ?? '') ? Number(hora.slice(0, 2)) * 60 + Number(hora.slice(3, 5)) : null;
         }
 
-        // RF05 / RN08: «8 fichas de 30 minutos» o por qué no se puede calcular.
+        // RF-11 / RN08: «8 fichas de 30 minutos» o por qué no se puede calcular.
         function resumenFichas(inicio, fin, duracion) {
             const a = minutos(inicio), b = minutos(fin), d = Number(duracion);
             if (a === null || b === null || ! d) return { ok: false, texto: 'Indique las horas y la duración para ver cuántas fichas salen por día.' };

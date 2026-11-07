@@ -1,4 +1,4 @@
-{{-- CU11 paso 5 / CU10 A4: ficha del paciente y sus citas (RF02: consultar sus citas anteriores). --}}
+{{-- CU11 paso 5 / CU10 A4: ficha del paciente y sus citas (RF-14: consultar sus citas anteriores). --}}
 @php
     $persona = $paciente->persona;
     $documento = $persona->numero_documento

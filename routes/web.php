@@ -53,12 +53,6 @@ Route::middleware("guest")->group(function(){
     });
 });
 
-// CU14 Consultar disponibilidad de fichas: PÚBLICA, con o sin sesión (el actor incluye al Visitante).
-// Solo consulta: las fichas se generan en CU09.
-Route::prefix("fichas")->controller(FichaController::class)->group(function(){
-    Route::get('/','index')->name("fichas.disponibilidad");
-});
-
 // CU12 paso 8 y A2: verificar el correo y reenviar el enlace funcionan con o sin sesión (el
 // paciente que ya inició sesión llega aquí desde el aviso del panel). El enlace de verificación
 // es una URL firmada temporal: la firma se revisa en el controlador para mostrar el mensaje en español.
@@ -148,7 +142,7 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/{clave}','show')->name("configuraciones.mostrar");
     });
 
-    // CU07 Gestionar médicos (RF03). delete = desactivar (RN11).
+    // CU07 Gestionar médicos (RF-09). delete = desactivar (RN11).
     Route::prefix("medicos")->middleware("can:medicos.gestionar")->controller(MedicoController::class)->group(function(){
         Route::get('/','index')->name("medicos.listar");
         Route::post('/','store')->name("medicos.guardar");
@@ -178,7 +172,7 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::post('/verificar','verificar')->name("vinculos-paciente.verificar");
     });
 
-    // CU06 Gestionar especialidades (RF04). delete = desactivar (RN11).
+    // CU06 Gestionar especialidades (RF-08). delete = desactivar (RN11).
     Route::prefix("especialidades")->middleware("can:especialidades.gestionar")->controller(EspecialidadController::class)->group(function(){
         Route::get('/','index')->name("especialidades.listar");
         Route::post('/','store')->name("especialidades.guardar");
@@ -214,7 +208,7 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/{id}','show')->name("consultorios.mostrar");
     });
 
-    // CU09 Gestionar horarios de atención (RF05). Sin update: un horario no se edita, se cierra
+    // CU09 Gestionar horarios de atención (RF-11). Sin update: un horario no se edita, se cierra
     // su vigencia (delete, A1) y se registra uno nuevo. generar = más semanas de fichas (A2).
     Route::prefix("horarios")->middleware("can:horarios.gestionar")->controller(HorarioAtencionController::class)->group(function(){
         Route::get('/','index')->name("horarios.listar");
@@ -230,6 +224,12 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::post('/update','update')->name("bloqueos.modificar");
         Route::post('/delete','delete')->name("bloqueos.eliminar");
         Route::get('/{id}','show')->name("bloqueos.mostrar");
+    });
+
+    // CU14 Consultar disponibilidad de fichas (paciente y recepcionista).
+    // Solo consulta: las fichas se generan en CU09.
+    Route::prefix("fichas")->middleware("can:fichas.consultar")->controller(FichaController::class)->group(function(){
+        Route::get('/','index')->name("fichas.disponibilidad");
     });
 
     // CU15 Programar cita (citas.programar = recepción; citas.autoservicio = paciente, A1). La

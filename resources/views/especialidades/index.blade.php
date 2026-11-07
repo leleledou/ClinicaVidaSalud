@@ -1,4 +1,4 @@
-{{-- CU06 Gestionar especialidades (RF04): lista y formulario de registrar/modificar en la misma página. --}}
+{{-- CU06 Gestionar especialidades (RF-08): lista y formulario de registrar/modificar en la misma página. --}}
 @php
     // Campos del formulario: si el servidor devolvió errores en alguno, el formulario se vuelve a abrir con lo escrito.
     $camposFormulario = ['nombre', 'descripcion', 'edad_minima', 'edad_maxima', 'sexo_permitido', 'duracion_sugerida_min'];

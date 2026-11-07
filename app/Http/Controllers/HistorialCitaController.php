@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\MessageBag;
 
 /**
- * CU20 Consultar historial de citas (RF12, §3.4). Solo consulta: historiales_cita es de solo
+ * CU20 Consultar historial de citas (RF-27, §3.4). Solo consulta: historiales_cita es de solo
  * inserción y las citas no se eliminan (RN10), así que el historial incluye las pasadas, canceladas
  * y reasignadas. citas.historial_consultar: recepción, administración y el médico (solo pacientes
  * con los que tiene o tuvo cita, CU11 A1); citas.historial_propio: el paciente (A1: el suyo y el de

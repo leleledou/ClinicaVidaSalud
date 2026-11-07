@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
- * CU05 Gestionar roles y permisos (RF01, RN12). Requiere el permiso roles.gestionar.
+ * CU05 Gestionar roles y permisos (RF-05, RN12). Requiere el permiso roles.gestionar.
  * La asociación rol-permiso (roles_permisos) se guarda aquí con sync().
  * No hay borrado físico (RN11): desactivar cambia el estado a INACTIVO y el rol
  * pierde sus permisos (Usuario::tienePermiso, CU05 A1).

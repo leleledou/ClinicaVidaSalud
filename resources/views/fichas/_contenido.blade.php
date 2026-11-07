@@ -2,9 +2,9 @@
 @php
     $claseSelect = 'campo';
     $dias = \App\Services\AgendaService::DIAS;
-    // CU14 pasos 5-6: sin sesión, el enlace lleva al login (auth); con permiso, al formulario de CU15.
-    $enlaceFicha = fn ($ficha) => route('citas.crear', array_filter(['ficha_id' => $ficha->id, 'paciente_id' => auth()->check() && $paciente && Gate::allows('citas.programar') ? $paciente->id : null]));
-    $clicable = auth()->guest() || $puedeReservar;
+    // CU14 pasos 5-6: con permiso, el enlace lleva al formulario de CU15.
+    $enlaceFicha = fn ($ficha) => route('citas.crear', array_filter(['ficha_id' => $ficha->id, 'paciente_id' => $paciente && Gate::allows('citas.programar') ? $paciente->id : null]));
+    $clicable = $puedeReservar;
 @endphp
 
 <div class="space-y-6">
@@ -103,7 +103,7 @@
             <span class="inline-flex items-center gap-1.5"><span class="h-3.5 w-3.5 rounded border border-red-200 bg-red-50"></span> Ocupada</span>
             <span class="inline-flex items-center gap-1.5"><span class="h-3.5 w-3.5 rounded border border-slate-300 bg-slate-200"></span> Bloqueada</span>
             @if ($clicable)
-                <span>Pulse una ficha disponible para {{ auth()->guest() ? 'iniciar sesión y reservarla' : 'programar la cita' }}.</span>
+                <span>Pulse una ficha disponible para programar la cita.</span>
             @endif
         </div>
 

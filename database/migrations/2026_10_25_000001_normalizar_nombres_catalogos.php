@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /*
- * RF04 y CU06 paso 5: el nombre de una especialidad (y de un consultorio, CU08
+ * RF-08 y CU06 paso 5: el nombre de una especialidad (y de un consultorio, CU08
  * paso 4) es único sin importar tildes, mayúsculas ni espacios repetidos.
  * «Pediatría», « pediatria » y «PEDIATRÍA» son el mismo nombre.
  *

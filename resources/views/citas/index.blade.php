@@ -12,7 +12,7 @@
     </x-slot>
 
     <div class="space-y-6">
-        {{-- Regla de negocio que impidió el cambio (RF08–RF10, RN21) --}}
+        {{-- Regla de negocio que impidió el cambio (RF-23–RF-25, RN21) --}}
         @if ($errors->has('cita'))
             <div class="alerta-error font-medium">{{ $errors->first('cita') }}</div>
         @endif

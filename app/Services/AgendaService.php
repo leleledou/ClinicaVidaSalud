@@ -9,7 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Lógica de la agenda (RF05): generación de fichas y cruces de horarios.
+ * Lógica de la agenda (RF-11): generación de fichas y cruces de horarios.
  * La usan CU09 Gestionar horarios y, más adelante, CU14, CU15 y el Temporizador.
  */
 class AgendaService
@@ -61,7 +61,7 @@ class AgendaService
     }
 
     /**
-     * RF05: calcula y guarda las fichas (los horarios disponibles) de un horario entre dos fechas.
+     * RF-11: calcula y guarda las fichas (los horarios disponibles) de un horario entre dos fechas.
      * Solo fechas dentro de la vigencia, desde hoy, del día de la semana del horario y con inicio
      * futuro (RN06). Una ficha que se cruza con un bloqueo de agenda (feriado, cierre del
      * consultorio o ausencia del médico) queda BLOQUEADA. Es idempotente: devuelve cuántas se

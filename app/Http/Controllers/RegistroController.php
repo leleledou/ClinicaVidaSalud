@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 
 /**
- * CU12 Autorregistrarse como paciente (RF01, §3.4: registro e inicio de sesión del paciente).
+ * CU12 Autorregistrarse como paciente (RF-16: registro e inicio de sesión del paciente).
  * Formulario público para una persona mayor de edad sin sesión. Crea persona, paciente (sin
  * recepcionista: autorregistro), historia clínica y cuenta PACIENTE con el correo sin verificar.
  */

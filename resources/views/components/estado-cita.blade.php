@@ -1,4 +1,4 @@
-{{-- Etiqueta de color por estado de la cita (RF06). --}}
+{{-- Etiqueta de color por estado de la cita (RF-25). --}}
 @props(['estado'])
 
 <span @class([

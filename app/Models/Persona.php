@@ -169,7 +169,7 @@ class Persona extends Model
     }
 
     // CU07 paso 4 / CU10 paso 2: persona con ese documento, comparando normalizado en los dos
-    // lados (consulta parametrizada). «expedido» no forma parte de la unicidad (RF02).
+    // lados (consulta parametrizada). «expedido» no forma parte de la unicidad (RF-14).
     public static function buscarPorDocumento(string $tipo, string $numero, ?string $complemento): ?self
     {
         return self::where("tipo_documento", $tipo)

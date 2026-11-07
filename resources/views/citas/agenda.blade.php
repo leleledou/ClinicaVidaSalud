@@ -1,10 +1,10 @@
-{{-- CU19 Consultar agenda médica (RF11, §3.2, §3.3): fichas del día de un médico con sus citas
+{{-- CU19 Consultar agenda médica (RF-26, §3.2, §3.3): fichas del día de un médico con sus citas
      (también las canceladas), totales por estado y los botones de CU18 (accionesPermitidas). --}}
 @php
     $claseSelect = 'campo';
     // CU19 paso 3: los botones de día conservan el médico y el estado.
     $irA = fn ($dia) => route('citas.agenda', array_filter(['medico_id' => $todos ? $filtros['medico_id'] : null, 'fecha' => $dia->toDateString(), 'estado' => $filtros['estado']]));
-    // CU19 paso 5 (RF11, §3.3): pendientes en azul, atendidas en verde, canceladas en gris tachado,
+    // CU19 paso 5 (RF-26, §3.3): pendientes en azul, atendidas en verde, canceladas en gris tachado,
     // inasistencias en rojo, libres en blanco y bloqueadas en gris claro.
     $colorFila = fn ($tipo) => match ($tipo) {
         'PROGRAMADA', 'CONFIRMADA' => 'bg-blue-50',

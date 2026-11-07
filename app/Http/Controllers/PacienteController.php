@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 /**
- * CU10 Gestionar pacientes y CU11 Buscar paciente (RF02).
+ * CU10 Gestionar pacientes y CU11 Buscar paciente (RF-14, RF-15).
  * Buscar y ver: permiso pacientes.buscar. Registrar, modificar, desactivar y activar:
  * permiso pacientes.gestionar. No hay borrado físico (RN11).
  */
@@ -104,7 +104,7 @@ class PacienteController extends Controller
         return $avisos ? $respuesta->with("aviso", implode(" ", $avisos)) : $respuesta;
     }
 
-    // CU11 paso 5 / CU10 A4: ficha del paciente y sus citas (RF02: consultar sus citas anteriores).
+    // CU11 paso 5 / CU10 A4: ficha del paciente y sus citas (RF-14: consultar sus citas anteriores).
     public function show(Request $request, $id)
     {
         // El id llega en la URL: si no es un número, la página no existe.

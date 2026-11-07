@@ -57,7 +57,7 @@ return new class extends Migration
         DB::statement("ALTER TABLE citas ADD CONSTRAINT ck_citas_estado CHECK (estado IN ('PROGRAMADA','CONFIRMADA','ATENDIDA','CANCELADA','INASISTENCIA'))");
         // V3 (Cita.canal): se registra por WEB o VOZ; SISTEMA solo aplica a historial y bitácora.
         DB::statement("ALTER TABLE citas ADD CONSTRAINT ck_citas_canal CHECK (canal IN ('WEB','VOZ'))");
-        // RF09: el motivo de cancelación es obligatorio al cancelar.
+        // RF-24: el motivo de cancelación es obligatorio al cancelar.
         DB::statement("ALTER TABLE citas ADD CONSTRAINT ck_citas_cancelacion CHECK (estado <> 'CANCELADA' OR (motivo_cancelacion IS NOT NULL AND btrim(motivo_cancelacion) <> ''))");
         // La excepción de edad la autoriza un administrador con justificación, siempre juntos.
         DB::statement('ALTER TABLE citas ADD CONSTRAINT ck_citas_excepcion CHECK ((administrador_autoriza_id IS NULL) = (justificacion_excepcion IS NULL))');

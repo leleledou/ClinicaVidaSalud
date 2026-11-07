@@ -22,7 +22,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Lógica de negocio de las citas (RF06–RF10, RN03–RN10, RN12, RN13, RN15–RN21). La usan CU15 Programar
+ * Lógica de negocio de las citas (RF-21–RF-25, RN03–RN10, RN12, RN13, RN15–RN21). La usan CU15 Programar
  * cita, CU16 Reprogramar, CU17 Cancelar y CU18 Registrar asistencia. Toda escritura va en UNA
  * transacción; las reglas que no se cumplen lanzan ReglaNegocioException con el mensaje en español
  * y la falta de permiso lanza AuthorizationException (403).
@@ -42,7 +42,7 @@ class CitaService
      */
     public function programar(array $datos, Usuario $usuario, string $origen): Cita
     {
-        // RN13 / RF06: la disponibilidad se comprueba otra vez dentro de la misma transacción que guarda.
+        // RN13 / RF-21: la disponibilidad se comprueba otra vez dentro de la misma transacción que guarda.
         return $this->enTransaccion(function () use ($datos, $usuario, $origen) {
             $cita = $this->registrarCita($datos, $usuario, $origen);
 
@@ -54,7 +54,7 @@ class CitaService
     }
 
     /**
-     * CU16 pasos 5 a 7 (RF08): cambia la cita a otra ficha del MISMO médico y especialidad.
+     * CU16 pasos 5 a 7 (RF-23): cambia la cita a otra ficha del MISMO médico y especialidad.
      * $autoservicio: el paciente o su responsable legal desde la web (A2).
      */
     public function reprogramar(Cita $cita, int $nuevaFichaId, Usuario $usuario, ?string $motivo = null, bool $autoservicio = false): Cita
@@ -66,7 +66,7 @@ class CitaService
             // b) RN12 / A2: recepción con citas.reprogramar o el dueño con citas.autoservicio.
             $this->autorizarCambio($cita, $usuario, $autoservicio, "citas.reprogramar");
 
-            // c) RF08 / RN21 / A2: PROGRAMADA o CONFIRMADA, sin comenzar y, por la web, con anticipación.
+            // c) RF-23 / RN21 / A2: PROGRAMADA o CONFIRMADA, sin comenzar y, por la web, con anticipación.
             $this->validarCambioPosible($cita, "reprogramar", $autoservicio);
 
             // d) RN18: máximo de reprogramaciones (max_reprogramaciones).
@@ -78,7 +78,7 @@ class CitaService
             $ficha = $this->bloquearFicha($nuevaFichaId);
             $this->bloquearPaciente($cita->paciente_id);
 
-            // f) RF08: mismo médico y especialidad, distinta de la actual.
+            // f) RF-23: mismo médico y especialidad, distinta de la actual.
             $actual = $cita->ficha->horario->medicoEspecialidad;
             $nueva = $ficha->horario->medicoEspecialidad;
             if ($nueva->medico_id !== $actual->medico_id || $nueva->especialidad_id !== $actual->especialidad_id) {
@@ -88,7 +88,7 @@ class CitaService
                 throw new ReglaNegocioException("Elija una ficha distinta de la actual.");
             }
 
-            // g) RN04–RN07 / RF07: habilitada, futura, de un horario vigente, médico activo y libre.
+            // g) RN04–RN07 / RF-22: habilitada, futura, de un horario vigente, médico activo y libre.
             $inicio = $ficha->inicio();
             $this->validarFicha($ficha, $inicio);
 
@@ -175,7 +175,7 @@ class CitaService
     }
 
     /**
-     * CU17 pasos 4 a 7 (RF09): cancela la cita SIN eliminar el registro; la ficha vuelve a quedar
+     * CU17 pasos 4 a 7 (RF-24): cancela la cita SIN eliminar el registro; la ficha vuelve a quedar
      * disponible (RN09: el índice parcial ux_citas_ficha_activa ya no la cuenta).
      * $autoservicio: el paciente o su responsable legal desde la web (A1).
      */
@@ -187,7 +187,7 @@ class CitaService
             // RN12 / A1: recepción con citas.cancelar o el dueño con citas.autoservicio.
             $this->autorizarCambio($cita, $usuario, $autoservicio, "citas.cancelar");
 
-            // RF09 / RN21 / A1: PROGRAMADA o CONFIRMADA, sin comenzar y, por la web, con anticipación.
+            // RF-24 / RN21 / A1: PROGRAMADA o CONFIRMADA, sin comenzar y, por la web, con anticipación.
             $this->validarCambioPosible($cita, "cancelar", $autoservicio);
 
             // ck_citas_cancelacion: el motivo es obligatorio.
@@ -206,7 +206,7 @@ class CitaService
     }
 
     /**
-     * CU18 (RF10): confirmar (CONFIRMADA), registrar la atención (ATENDIDA) o la inasistencia
+     * CU18 (RF-25): confirmar (CONFIRMADA), registrar la atención (ATENDIDA) o la inasistencia
      * (INASISTENCIA, A1). Revisa el permiso (RN12), la transición y el momento (RN21).
      */
     public function cambiarEstado(Cita $cita, string $nuevo, Usuario $usuario): Cita
@@ -226,7 +226,7 @@ class CitaService
                 throw new AuthorizationException("No tiene permiso para cambiar el estado de esta cita.");
             }
 
-            // RF10: solo las transiciones de la máquina de estados (CANCELADA y PROGRAMADA tienen su propio caso de uso).
+            // RF-25: solo las transiciones de la máquina de estados (CANCELADA y PROGRAMADA tienen su propio caso de uso).
             if (! in_array($nuevo, ["CONFIRMADA", "ATENDIDA", "INASISTENCIA"], true) || ! $cita->puedePasarA($nuevo)) {
                 throw new ReglaNegocioException("Transición no permitida: una cita " . mb_strtolower($estadoAnterior) . " no puede pasar a " . mb_strtolower($nuevo) . ".");
             }
@@ -279,7 +279,7 @@ class CitaService
     }
 
     /**
-     * RF06 / CU15 paso 3: SOLO las fichas disponibles de un médico en una especialidad y fecha:
+     * RF-21 / CU15 paso 3: SOLO las fichas disponibles de un médico en una especialidad y fecha:
      * HABILITADAS, futuras, de horarios ACTIVOS y vigentes y sin cita activa, ordenadas por hora.
      */
     public function fichasDisponibles(int $medicoId, int $especialidadId, Carbon $fecha): Collection
@@ -311,7 +311,7 @@ class CitaService
     }
 
     /**
-     * CU14 / RF06: consulta base de las fichas que se pueden mostrar: de horarios ACTIVOS y vigentes
+     * CU14 / RF-20: consulta base de las fichas que se pueden mostrar: de horarios ACTIVOS y vigentes
      * en la fecha de la ficha (RN05), del día y dentro de las horas del horario, de médicos,
      * especialidades y asignaciones ACTIVOS (RN04) y con inicio futuro (RN06). Trae los datos del
      * médico, la especialidad, la modalidad y el consultorio. Con parámetros.
@@ -354,7 +354,7 @@ class CitaService
         return ($persona->sexo === "F" ? "Dra. " : "Dr. ") . $persona->nombre_completo;
     }
 
-    // RF07: transacción que traduce el 23505 de ux_citas_ficha_activa (otro usuario tomó la ficha
+    // RF-22: transacción que traduce el 23505 de ux_citas_ficha_activa (otro usuario tomó la ficha
     // en el mismo instante) a un mensaje sin detalles internos.
     private function enTransaccion(\Closure $operacion): Cita
     {
@@ -440,7 +440,7 @@ class CitaService
 
     /**
      * CU17 pasos 5 y 6 (lo reutiliza CU16 A1): CANCELADA con su motivo, sin eliminar el registro
-     * (RF09, RN10), historial, avisos pendientes anulados y CITA_CANCELADA al paciente y al médico.
+     * (RF-24, RN10), historial, avisos pendientes anulados y CITA_CANCELADA al paciente y al médico.
      */
     private function anular(Cita $cita, string $motivo, Usuario $usuario): void
     {
@@ -471,7 +471,7 @@ class CitaService
         return $bloqueada->load(array_merge(["paciente.persona"], array_map(fn ($relacion) => "ficha." . $relacion, self::RELACIONES_FICHA)));
     }
 
-    // RN13 / RF07: la ficha bloqueada (FOR UPDATE) hasta el final de la transacción.
+    // RN13 / RF-22: la ficha bloqueada (FOR UPDATE) hasta el final de la transacción.
     private function bloquearFicha(int $fichaId): Ficha
     {
         $ficha = Ficha::whereKey($fichaId)->lockForUpdate()->first();
@@ -500,14 +500,14 @@ class CitaService
         }
     }
 
-    // RF08 / RF09 / RN21: la cita está PROGRAMADA o CONFIRMADA y no ha comenzado; por la web, además,
+    // RF-23 / RF-24 / RN21: la cita está PROGRAMADA o CONFIRMADA y no ha comenzado; por la web, además,
     // faltan al menos horas_minimas_cambio_web horas (CU16 A2 / CU17 A1).
     private function validarCambioPosible(Cita $cita, string $accion, bool $autoservicio): void
     {
         $estado = mb_strtolower($cita->estado);
         if (! in_array($cita->estado, Cita::ESTADOS_VIGENTES, true)) {
             if ($accion === "cancelar") {
-                // RF09: una cita atendida no se cancela como si no hubiera ocurrido.
+                // RF-24: una cita atendida no se cancela como si no hubiera ocurrido.
                 throw new ReglaNegocioException($cita->estado === "ATENDIDA" ? "Una cita atendida no se puede cancelar: ya ocurrió." : "La cita ya está {$estado}.");
             }
             throw new ReglaNegocioException("Una cita {$estado} no se puede {$accion}.");
@@ -596,7 +596,7 @@ class CitaService
             throw new ReglaNegocioException("La especialidad {$asignacion->especialidad->nombre} no está disponible con ese médico.");
         }
 
-        // RN07 / RF07: la ficha no tiene otra cita activa (mensaje explicativo).
+        // RN07 / RF-22: la ficha no tiene otra cita activa (mensaje explicativo).
         if ($ficha->citaActiva()->exists()) {
             $persona = $medico->persona;
             throw new ReglaNegocioException("El horario de " . substr($ficha->hora_inicio, 0, 5) . " a " . substr($ficha->hora_fin, 0, 5) . " "

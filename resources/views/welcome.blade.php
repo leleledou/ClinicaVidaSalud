@@ -23,7 +23,6 @@
                 <div class="mt-8 space-y-3">
                     <a href="{{ route('login') }}" class="btn-primario w-full py-3 text-base">Iniciar sesión</a>
                     <a href="{{ route('registro') }}" class="btn-secundario w-full py-3 text-base">Crear cuenta</a>
-                    <a href="{{ route('fichas.disponibilidad') }}" class="inline-block pt-2 text-sm font-semibold text-teal-700 hover:underline">Ver médicos y horarios</a>
                 </div>
             </div>
         </div>

@@ -15,8 +15,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\MessageBag;
 
 /**
- * CU14 Consultar disponibilidad de fichas (RF06, §3.4: por especialidad, ubicación y disponibilidad).
- * Página PÚBLICA (el actor incluye al Visitante). Solo consulta: ninguna ficha queda reservada.
+ * CU14 Consultar disponibilidad de fichas (RF-20, §3.4: por especialidad, ubicación y disponibilidad).
+ * Requiere sesión y el permiso fichas.consultar (paciente y recepcionista). Solo consulta: ninguna ficha queda reservada.
  * Las fichas se generan en CU09 (AgendaService); aquí no se crean ni se modifican.
  */
 class FichaController extends Controller

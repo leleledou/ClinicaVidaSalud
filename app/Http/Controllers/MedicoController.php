@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
- * CU07 Gestionar médicos (RF03). Requiere el permiso medicos.gestionar.
+ * CU07 Gestionar médicos (RF-09). Requiere el permiso medicos.gestionar.
  * Un médico inactivo no recibe nuevas citas pero conserva las históricas (RN11: no se borra).
  */
 class MedicoController extends Controller
@@ -27,7 +27,7 @@ class MedicoController extends Controller
     private const CAMPOS_PERSONA = ["nombres", "apellido_paterno", "apellido_materno", "fecha_nacimiento", "sexo", "telefono", "correo", "direccion"];
     private const CAMPOS_DOCUMENTO = ["tipo_documento", "numero_documento", "complemento", "expedido"];
 
-    // CU07 paso 2 / RF03: lista paginada, con búsqueda por nombre o especialidad.
+    // CU07 paso 2 / RF-09: lista paginada, con búsqueda por nombre o especialidad.
     public function index(Request $request)
     {
         $texto = trim((string) $request->query("q", ""));
@@ -37,7 +37,7 @@ class MedicoController extends Controller
                 "persona",
                 "especialidades" => fn ($consulta) => $consulta->wherePivot("estado", "ACTIVO")->orderBy("nombre"),
             ])
-            // RF03: el texto se busca en el nombre completo o en el nombre de la especialidad,
+            // RF-09: el texto se busca en el nombre completo o en el nombre de la especialidad,
             // sin tildes ni mayúsculas en los dos lados (fn_normalizar_texto) y con parámetros.
             ->when($texto !== "", function ($consulta) use ($texto) {
                 $patron = "%" . $this->escaparLike($texto) . "%";
@@ -49,7 +49,7 @@ class MedicoController extends Controller
                             ->whereRaw("fn_normalizar_texto(especialidades.nombre) LIKE fn_normalizar_texto(?)", [$patron]));
                 });
             })
-            // RF03: filtro por especialidad (solo asignaciones activas).
+            // RF-09: filtro por especialidad (solo asignaciones activas).
             ->when($especialidadId, fn ($consulta) => $consulta->whereHas("especialidades", fn ($especialidad) => $especialidad
                 ->where("especialidades.id", $especialidadId)
                 ->where("medicos_especialidades.estado", "ACTIVO")))

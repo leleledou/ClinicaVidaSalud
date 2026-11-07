@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
  * Funciones y triggers de integridad de PostgreSQL. Se crean al final porque
  * dependen de que existan todas las tablas.
  *
- *  - Sin borrado físico (RN11, RF09): DELETE bloqueado en las tablas que
+ *  - Sin borrado físico (RN11, RF-24): DELETE bloqueado en las tablas que
  *    conservan historial. La baja es lógica por `estado`/`vigente`/`activa`.
  *  - Solo inserción: bitacoras e historiales_cita no admiten UPDATE.
  *  - Reemplazo de cita: la cita anterior debe estar CANCELADA y ser del mismo

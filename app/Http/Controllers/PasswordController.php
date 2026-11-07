@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * CU03 Cambiar contraseña (RF01).
+ * CU03 Cambiar contraseña (RF-03).
  */
 class PasswordController extends Controller
 {

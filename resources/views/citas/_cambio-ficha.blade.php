@@ -62,7 +62,7 @@
             </div>
         </div>
 
-        {{-- Paso 3 / RF06: SOLO los horarios disponibles, como botones de hora --}}
+        {{-- Paso 3 / RF-21: SOLO los horarios disponibles, como botones de hora --}}
         <div>
             <p class="etiqueta">Horarios disponibles</p>
             <p class="mt-1 text-sm text-slate-500" x-show="cargando">Cargando…</p>

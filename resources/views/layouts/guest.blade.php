@@ -56,11 +56,9 @@
                     {{ $slot }}
                 </div>
 
-                {{-- CU14: consulta pública de médicos y horarios; CU01: iniciar sesión --}}
+                {{-- CU01: iniciar sesión --}}
                 @unless (request()->routeIs('login'))
                     <nav class="mt-6 flex gap-4 text-sm font-semibold text-teal-100">
-                        <a href="{{ route('fichas.disponibilidad') }}" class="hover:text-white hover:underline">Médicos y horarios</a>
-                        <span class="text-teal-300">·</span>
                         <a href="{{ route('login') }}" class="hover:text-white hover:underline">Iniciar sesión</a>
                     </nav>
                 @endunless

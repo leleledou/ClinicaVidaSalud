@@ -1,4 +1,4 @@
-{{-- CU11 Buscar paciente y CU10 Gestionar pacientes (RF02): buscador, lista y formulario en la misma página. --}}
+{{-- CU11 Buscar paciente y CU10 Gestionar pacientes (RF-14, RF-15): buscador, lista y formulario en la misma página. --}}
 @php
     $camposPersona = ['tipo_documento', 'numero_documento', 'complemento', 'expedido', 'nombres', 'apellido_paterno', 'apellido_materno',
         'fecha_nacimiento', 'sexo', 'telefono', 'correo', 'direccion'];

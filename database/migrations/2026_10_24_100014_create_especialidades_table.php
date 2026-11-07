@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 /*
  * UML: Especialidad. Los límites de edad y el sexo permitido son nullable:
  * V3 los marca "por confirmar con la docente" y son configurables.
- * RF04: no se admiten dos especialidades con el mismo nombre normalizado
+ * RF-08: no se admiten dos especialidades con el mismo nombre normalizado
  * (minúsculas y sin espacios en los extremos).
  */
 return new class extends Migration

@@ -1,4 +1,4 @@
-{{-- RF06: detalle de la cita (con el formato del ejemplo del enunciado) y su historial (RF09).
+{{-- RF-27: detalle de la cita (con el formato del ejemplo del enunciado) y su historial.
      CU16, CU17 y CU18: solo los botones de las acciones válidas ($acciones = accionesPermitidas). --}}
 @php
     $ficha = $cita->ficha;
@@ -61,7 +61,7 @@
                     <div class="dato"><dt>Canal</dt><dd>{{ $cita->canal }}</dd></div>
                     <div class="dato"><dt>Registrada por</dt><dd>{{ $cita->usuarioRegistra->persona->nombre_completo }} ({{ $cita->usuarioRegistra->nombre_usuario }})</dd></div>
                     <div class="dato"><dt>Fecha de registro</dt><dd>{{ $cita->fecha_registro?->format('d/m/Y H:i') }}</dd></div>
-                    {{-- CU17 / RF09: el motivo de la cancelación queda para consultas históricas --}}
+                    {{-- CU17 / RF-24: el motivo de la cancelación queda para consultas históricas --}}
                     @if ($cita->estado === 'CANCELADA')
                         <div class="dato xl:col-span-2"><dt>Motivo de cancelación</dt><dd>{{ $cita->motivo_cancelacion }}</dd></div>
                     @endif
@@ -75,7 +75,7 @@
                 </dl>
             </div>
 
-            {{-- Regla de negocio que impidió el cambio (RF07–RF10, RN09–RN21) --}}
+            {{-- Regla de negocio que impidió el cambio (RF-22–RF-25, RN09–RN21) --}}
             @if ($errors->has('cita'))
                 <div class="alerta-error font-medium">{{ $errors->first('cita') }}</div>
             @endif
@@ -136,7 +136,7 @@
                 </div>
             @endif
 
-            {{-- RF09: historial de la cita --}}
+            {{-- RF-27: historial de la cita --}}
             <div class="tarjeta space-y-4">
                 <h2 class="tarjeta-titulo">Historial</h2>
                 <div class="tabla-contenedor">

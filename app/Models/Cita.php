@@ -28,13 +28,13 @@ class Cita extends Model
         "fecha_registro"
     ];
 
-    // RF06: estados de la cita (ck_citas_estado). Activa = cualquiera distinto de CANCELADA.
+    // RF-25: estados de la cita (ck_citas_estado). Activa = cualquiera distinto de CANCELADA.
     public const ESTADOS = ["PROGRAMADA", "CONFIRMADA", "ATENDIDA", "CANCELADA", "INASISTENCIA"];
 
-    // RN17 / RF08 / RF09: estados vigentes (la cita todavía puede cambiar). Los demás son finales.
+    // RN17 / RF-23 / RF-24: estados vigentes (la cita todavía puede cambiar). Los demás son finales.
     public const ESTADOS_VIGENTES = ["PROGRAMADA", "CONFIRMADA"];
 
-    // RF10: máquina de estados. ATENDIDA, CANCELADA e INASISTENCIA son finales (una cancelada no
+    // RF-25: máquina de estados. ATENDIDA, CANCELADA e INASISTENCIA son finales (una cancelada no
     // se marca como atendida; una atendida no se cancela como si no hubiera ocurrido).
     public const TRANSICIONES = [
         "PROGRAMADA" => ["CONFIRMADA", "CANCELADA", "ATENDIDA", "INASISTENCIA"],
@@ -76,7 +76,7 @@ class Cita extends Model
         return $this->belongsTo(PacienteSeguro::class, "seguro_paciente_id");
     }
 
-    // RF09: historial de cambios de estado y de ficha.
+    // RF-27: historial de cambios de estado y de ficha.
     public function historiales()
     {
         return $this->hasMany(HistorialCita::class, "cita_id");
@@ -112,7 +112,7 @@ class Cita extends Model
         return $this->hasOne(Consulta::class, "cita_id");
     }
 
-    // RF10: la transición del estado actual a $nuevo es válida.
+    // RF-25: la transición del estado actual a $nuevo es válida.
     public function puedePasarA(string $nuevo): bool
     {
         return in_array($nuevo, self::TRANSICIONES[$this->estado] ?? [], true);
@@ -172,7 +172,7 @@ class Cita extends Model
             ->exists();
     }
 
-    // RF06 / CU20: quién ve el detalle de la cita. citas.programar o citas.historial_consultar (el médico
+    // RF-27 / CU20: quién ve el detalle de la cita. citas.programar o citas.historial_consultar (el médico
     // solo sus citas, como en CU11 A1), o el paciente dueño / su responsable legal verificado.
     public function puedeVerla(Usuario $usuario): bool
     {
@@ -205,13 +205,13 @@ class Cita extends Model
     }
 
     /**
-     * CU18 paso 2 / RF10: acciones válidas según el estado, la hora actual (RN21) y los permisos del
+     * CU18 paso 2 / RF-25: acciones válidas según el estado, la hora actual (RN21) y los permisos del
      * usuario (RN12): confirmar, atender, inasistencia, reprogramar, reasignar y cancelar. Las vistas
      * muestran solo estos botones; CitaService vuelve a validar todo al guardar.
      */
     public function accionesPermitidas(Usuario $usuario): array
     {
-        // RF10: ATENDIDA, CANCELADA e INASISTENCIA son finales.
+        // RF-25: ATENDIDA, CANCELADA e INASISTENCIA son finales.
         if (! in_array($this->estado, self::ESTADOS_VIGENTES, true)) {
             return [];
         }

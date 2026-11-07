@@ -1,4 +1,4 @@
-{{-- CU20 Consultar historial de citas (RF12, §3.4): TODAS las citas del paciente (pasadas, canceladas y
+{{-- CU20 Consultar historial de citas (RF-27, §3.4): TODAS las citas del paciente (pasadas, canceladas y
      reasignadas), con filtros, totales por estado e indicadores de reprogramación y reemplazo.
      A1: el paciente elige entre sus citas y las de los menores a su cargo. --}}
 @php

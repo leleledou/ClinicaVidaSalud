@@ -31,7 +31,7 @@
                 </div>
             @endunless
 
-            {{-- CU15 paso 8: regla de negocio que impidió guardar (RN03–RN20, RF07) --}}
+            {{-- CU15 paso 8: regla de negocio que impidió guardar (RN03–RN20, RF-22) --}}
             @if ($errors->has('cita'))
                 <div class="alerta-error font-medium">{{ $errors->first('cita') }}</div>
             @endif
@@ -135,7 +135,7 @@
                         </div>
                     </div>
 
-                    {{-- CU15 paso 3 / RF06: SOLO los horarios disponibles, como botones de hora --}}
+                    {{-- CU15 paso 3 / RF-21: SOLO los horarios disponibles, como botones de hora --}}
                     <div class="tarjeta space-y-3" x-show="paciente" x-cloak>
                         <h2 class="tarjeta-titulo">2. Horarios disponibles</h2>
                         <p class="text-sm text-slate-500" x-show="cargando">Cargando…</p>
