@@ -97,7 +97,7 @@ class SeguridadSeeder extends Seeder
         'MEDICO' => [
             'agenda.propia', 'fichas.consultar', 'pacientes.buscar', 'citas.registrar_asistencia',
             'citas.historial_consultar', 'historia.consultar', 'historia.gestionar', 'consultas.gestionar',
-            'tratamientos.gestionar', 'laboratorio.cargar_resultados', 'laboratorio.consultar_resultados', 'voz.usar',
+            'tratamientos.gestionar', 'laboratorio.consultar_resultados', 'voz.usar',
         ],
         'PACIENTE' => [
             'fichas.consultar', 'perfil.gestionar', 'citas.autoservicio', 'citas.historial_propio',

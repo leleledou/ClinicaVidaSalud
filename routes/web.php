@@ -362,11 +362,19 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::post('/','store')->name("prescripciones.guardar");
     });
 
+    // CU38 Consultar notificaciones (RF-39): cualquier usuario con sesión, sin permiso especial; cada uno
+    // ve y marca solo las de su persona (otra persona → 403, lo revisa NotificacionService).
     Route::prefix("notificaciones")->controller(NotificacionController::class)->group(function(){
         Route::get('/','index')->name("notificaciones.listar");
-        Route::post('/','store')->name("notificaciones.guardar");
-        Route::post('/update','update')->name("notificaciones.modificar");
-        Route::post('/delete','delete')->name("notificaciones.eliminar");
-        Route::get('/{id}','show')->name("notificaciones.mostrar");
+        Route::post('/leer','leer')->name("notificaciones.leer");
+        Route::post('/leer-todas','leerTodas')->name("notificaciones.leer-todas");
+    });
+});
+
+// CU37 paso 4: avisos nuevos para el navegador (JSON, cada 60 s). Sin el middleware inactividad: la consulta
+// automática no cuenta como actividad (CU02 A1); el controlador solo lee la marca y responde 401 si venció.
+Route::middleware(["auth", "auth.session", "cuenta.activa", "cambio.password"])->group(function(){
+    Route::prefix("notificaciones")->controller(NotificacionController::class)->group(function(){
+        Route::get('/nuevas','nuevas')->name("notificaciones.nuevas");
     });
 });

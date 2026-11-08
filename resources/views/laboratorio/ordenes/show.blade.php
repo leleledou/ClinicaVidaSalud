@@ -1,5 +1,5 @@
 {{-- Ficha de la orden de laboratorio. CU35 Registrar resultados de laboratorio (RF-36) paso 2: datos de la orden y,
-     si está SOLICITADA o MUESTRA_TOMADA y el usuario tiene laboratorio.cargar_resultados, el formulario de toma de
+     si está SOLICITADA o MUESTRA_TOMADA y el usuario es la Recepcionista (el médico solo revisa), el formulario de toma de
      muestra y valores. CU36 Revisar resultados y evolución (RF-37) pasos 2 a 4: tabla de resultados y evolución de
      cada parámetro NUMERICO (gráfico SVG sin librerías). El formulario con errores se reabre con old(). --}}
 @php
@@ -51,7 +51,7 @@
             </dl>
         </div>
 
-        {{-- CU35 pasos 2 y 3: toma de muestra y valores (A1: solo si está pendiente y con laboratorio.cargar_resultados) --}}
+        {{-- CU35 pasos 2 y 3: toma de muestra y valores (A1: solo si está pendiente y es la Recepcionista) --}}
         @if ($puedeCargar)
             <div class="tarjeta space-y-4">
                 <h2 class="tarjeta-titulo !mb-0">Registrar resultados</h2>

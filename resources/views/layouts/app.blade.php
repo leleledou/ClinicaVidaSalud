@@ -12,9 +12,13 @@
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
 
         <!-- Scripts -->
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        {{-- CU37 paso 4: notificaciones.js (avisos del navegador y contador del menú), solo con sesión --}}
+        @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/notificaciones.js'])
     </head>
-    <body class="font-sans antialiased bg-slate-100 text-slate-800">
+    <body class="font-sans antialiased bg-slate-100 text-slate-800"
+          data-notificaciones-url="{{ route('notificaciones.nuevas') }}"
+          data-notificaciones-usuario="{{ Auth::id() }}"
+          data-notificaciones-push="{{ Auth::user()->notificar_por_push ? '1' : '0' }}">
         {{-- menuAbierto: cajón del menú lateral en pantallas pequeñas --}}
         <div x-data="{ menuAbierto: false }" @keydown.escape.window="menuAbierto = false" class="min-h-screen">
             @include('layouts.navigation')

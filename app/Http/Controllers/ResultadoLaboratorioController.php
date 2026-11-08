@@ -8,8 +8,8 @@ use App\Services\LaboratorioService;
 use Illuminate\Http\Request;
 
 /**
- * CU35 Registrar resultados de laboratorio (RF-36, RN23, RN24). Permiso laboratorio.cargar_resultados
- * (Recepcionista y Médico), desde la ficha de una orden SOLICITADA o MUESTRA_TOMADA. La toma de muestra
+ * CU35 Registrar resultados de laboratorio (RF-36, RN23, RN24). Solo la Recepcionista (laboratorio.cargar_resultados
+ * sin perfil de médico; el médico solo revisa, CU36), desde la ficha de una orden SOLICITADA o MUESTRA_TOMADA. La toma de muestra
  * y los valores se registran en un solo paso. No hay modificación ni borrado (RN11): el rango aplicado
  * queda fijo (RN23). Las reglas de negocio (rango, interpretación, avisos) están en LaboratorioService.
  */

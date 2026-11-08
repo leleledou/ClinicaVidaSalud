@@ -107,9 +107,9 @@ class LaboratorioService
             $orden = OrdenLaboratorio::whereKey($orden->id)->lockForUpdate()->firstOrFail();
             $orden->load(["tipoExamen.parametros", "consulta.cita.paciente.persona", "consulta.cita.ficha.horario.medicoEspecialidad.medico.persona"]);
 
-            // CU35 paso 4: con laboratorio.cargar_resultados y la orden a su alcance (misma regla que la lista
-            // y la ficha: el médico, solo sus pacientes). Si no, 403.
-            if (! $usuario->tienePermiso("laboratorio.cargar_resultados") || ! $orden->alAlcanceDe($usuario)) {
+            // CU35 paso 4: solo la Recepcionista (alcance «laboratorio»: laboratorio.cargar_resultados y sin perfil
+            // de médico). El médico solo revisa (CU36), aunque la base todavía le tenga el permiso. Si no, 403.
+            if (OrdenLaboratorio::alcance($usuario) !== "laboratorio") {
                 throw new AuthorizationException("No puede registrar resultados de esta orden.");
             }
 

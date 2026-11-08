@@ -121,8 +121,8 @@ class OrdenLaboratorioController extends Controller
             "paciente" => $paciente,
             "medico" => $orden->medicoSolicitante(),
             "prioridades" => OrdenLaboratorio::PRIORIDADES,
-            // CU35 paso 2 / A1: solo pendiente, a su alcance y con laboratorio.cargar_resultados.
-            "puedeCargar" => $alAlcance && in_array($orden->estado, OrdenLaboratorio::PENDIENTES, true) && $usuario->tienePermiso("laboratorio.cargar_resultados"),
+            // CU35 paso 2 / A1: solo pendiente y solo la Recepcionista (alcance «laboratorio»); el médico solo revisa.
+            "puedeCargar" => in_array($orden->estado, OrdenLaboratorio::PENDIENTES, true) && OrdenLaboratorio::alcance($usuario) === "laboratorio",
             "evoluciones" => $evoluciones,
         ]);
     }

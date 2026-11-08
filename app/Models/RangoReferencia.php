@@ -74,7 +74,8 @@ class RangoReferencia extends Model
     /**
      * CU35 paso 6 (RN23): rango aplicable, como RegistroClinico::rango: el del parámetro, vigente en la
      * fecha, cuya banda de edad contiene la edad en meses del paciente en esa fecha y cuyo sexo es el del
-     * paciente o NULL (ambos). Los rangos no se cruzan (ex_rangos_referencia_solape): hay uno o ninguno.
+     * paciente o NULL (ambos). El EXCLUDE (ex_rangos_referencia_solape) deja que un rango general (sexo NULL)
+     * y uno específico (M/F) se crucen: gana el específico (C09, RN23); después, el de menor id.
      */
     public static function aplicable(int $parametroId, CarbonInterface $nacimiento, ?string $sexo, CarbonInterface $fecha): ?self
     {
@@ -87,6 +88,7 @@ class RangoReferencia extends Model
             ->where(fn ($s) => $s->whereNull("sexo")->when($sexo !== null, fn ($o) => $o->orWhere("sexo", $sexo)))
             ->whereDate("vigente_desde", "<=", $dia)
             ->where(fn ($v) => $v->whereNull("vigente_hasta")->orWhereDate("vigente_hasta", ">=", $dia))
+            ->orderByRaw("sexo IS NULL")
             ->orderBy("id")
             ->first();
     }

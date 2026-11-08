@@ -97,8 +97,9 @@ class OrdenLaboratorio extends Model
     /**
      * CU35 paso 1 / CU36 paso 1: única regla de qué órdenes ve el usuario (lista, ficha y carga de resultados).
      * "medico": perfil de médico ACTIVO con laboratorio.cargar_resultados o laboratorio.consultar_resultados;
-     * SOLO las de pacientes con los que tiene o tuvo cita, aunque pueda cargar (como CU11 A1, CU20 y CU30).
-     * "laboratorio": laboratorio.cargar_resultados y NO es médico (la Recepcionista); ve todas.
+     * SOLO las de pacientes con los que tiene o tuvo cita (como CU11 A1, CU20 y CU30) y solo revisa: no carga
+     * resultados aunque la base todavía le tenga laboratorio.cargar_resultados (CU35 es de la Recepcionista).
+     * "laboratorio": laboratorio.cargar_resultados y NO es médico (la Recepcionista); ve todas y carga (CU35).
      * "paciente": resultados.propios; las suyas y las de los menores a su cargo. null: sin acceso (403).
      */
     public static function alcance(Usuario $usuario): ?string

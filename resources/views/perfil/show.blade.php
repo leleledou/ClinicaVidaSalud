@@ -79,7 +79,12 @@
                                @checked($valor('notificar_por_push', $usuario->notificar_por_push))>
                         Recibir avisos push
                     </label>
-                    <p class="text-xs text-slate-500">Los avisos push se activan en este dispositivo cuando estén disponibles.</p>
+                    {{-- CU37 paso 4: los avisos push los muestra el navegador; aquí se le pide el permiso --}}
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button type="button" class="btn-secundario btn-chico" data-activar-avisos>Activar avisos en este navegador</button>
+                        <span class="text-xs text-slate-500" data-estado-avisos></span>
+                    </div>
+                    <p class="text-xs text-slate-500">Marque «Recibir avisos push», guarde y active los avisos en cada navegador donde inicie sesión.</p>
                     <x-input-error :messages="array_merge($errors->get('notificar_por_correo'), $errors->get('notificar_por_push'))" class="mt-2" />
                 </div>
 

@@ -45,6 +45,15 @@
             Panel
         </x-menu-enlace>
 
+        {{-- CU38 Consultar notificaciones: todos los usuarios con sesión, con el número de no leídas (una sola
+             consulta de conteo por petición; notificaciones.js lo actualiza cada minuto) --}}
+        @php $noLeidasMenu = \App\Models\Notificacion::contarNoLeidas($usuarioMenu); @endphp
+        <x-menu-enlace :href="route('notificaciones.listar')" :active="request()->routeIs('notificaciones.*')">
+            Notificaciones
+            <span data-contador-notificaciones @class(['ms-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-bold text-white', 'hidden' => $noLeidasMenu === 0])
+                  aria-label="{{ $noLeidasMenu }} sin leer">{{ $noLeidasMenu > 99 ? '99+' : $noLeidasMenu }}</span>
+        </x-menu-enlace>
+
         {{-- CITAS --}}
         <x-menu-seccion>Citas</x-menu-seccion>
 
