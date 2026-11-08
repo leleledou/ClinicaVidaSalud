@@ -30,7 +30,7 @@
                     Vínculos
                 </a>
             @endcanany
-            {{-- CU30 paso 5: cardex, si el usuario tiene acceso clínico (Paciente::accesoClinico) --}}
+            {{-- CU30 paso 1: cardex, si el usuario tiene acceso clínico (Paciente::accesoClinico) --}}
             @if ($paciente->accesoClinico(auth()->user()))
                 <a href="{{ route('historias-clinicas.mostrar', $paciente->id) }}"
                    class="btn-secundario btn-chico">

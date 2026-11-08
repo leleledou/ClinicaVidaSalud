@@ -220,7 +220,7 @@
                 </form>
             @endif
 
-            {{-- CU34 paso 4: órdenes de la consulta; CU34 paso 3: anular una SOLICITADA (también con la consulta finalizada) --}}
+            {{-- CU34 paso 3: órdenes de la consulta; CU34 A4 (paso 3): anular una SOLICITADA (también con la consulta finalizada); A5: otra no ofrece «Anular» --}}
             <div class="tabla-contenedor">
                 <table class="tabla">
                     <thead><tr><th>Código</th><th>Examen</th><th>Prioridad</th><th>Solicitada</th><th>Estado</th><th class="text-right">Acciones</th></tr></thead>

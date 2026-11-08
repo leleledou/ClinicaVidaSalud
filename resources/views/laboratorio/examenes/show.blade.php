@@ -83,6 +83,7 @@
                 <input type="hidden" name="id" :value="parametro.id" :disabled="! parametro.id">
                 <input type="hidden" name="con_resultados" :value="parametro.con_resultados ? 1 : 0">
                 <h3 class="font-semibold text-marino-900 sm:col-span-4" x-text="parametro.id ? 'Modificar parámetro' : 'Nuevo parámetro'"></h3>
+                {{-- CU33 A3 (paso 2): con resultados no cambia el tipo de valor ni la unidad --}}
                 <p class="alerta-info sm:col-span-4" x-show="parametro.con_resultados">El parámetro ya tiene resultados: no se cambia su tipo de valor ni su unidad.</p>
                 <div class="sm:col-span-2">
                     <x-input-label for="parametro_nombre" value="Nombre" />
@@ -155,7 +156,7 @@
                                             <td class="whitespace-nowrap">{{ $rango->textoCriticos() }}</td>
                                             <td class="whitespace-nowrap">{{ $rango->vigente_desde->format('d/m/Y') }} – {{ $rango->vigente_hasta?->format('d/m/Y') ?? 'sin fin' }}</td>
                                             <td class="whitespace-nowrap">
-                                                {{-- CU33 A4: un rango usado no se edita --}}
+                                                {{-- CU33 A5 (paso 3): un rango usado no se edita --}}
                                                 @if ($rango->resultados_count > 0)
                                                     <span class="text-amber-700">Usado en {{ $rango->resultados_count }} resultados: no se edita</span>
                                                 @else
@@ -168,7 +169,7 @@
                                                         <button type="button" class="accion" @click="abrir('rango', {{ Js::from($datosRango($rango, $parametro)) }}, {{ Js::from($rangoVacio) }})">Modificar</button>
                                                     @endif
                                                     <button type="button" class="accion" @click="cerrar = ! cerrar">Cerrar vigencia</button>
-                                                    {{-- CU33 A4: cerrar la vigencia (vigente_hasta); luego se registra la versión nueva --}}
+                                                    {{-- CU33 A5 (paso 3): cerrar la vigencia (vigente_hasta); luego se registra la versión nueva --}}
                                                     <form x-show="cerrar" x-cloak method="POST" action="{{ route('rangos-referencia.eliminar') }}" class="mt-2 flex flex-wrap items-center gap-2"
                                                           onsubmit="return confirm('¿Cerrar la vigencia del rango en esa fecha?')">
                                                         @csrf
@@ -258,6 +259,7 @@
                 <x-primary-button x-text="rango.id ? 'Guardar cambios' : 'Registrar'">Guardar</x-primary-button>
                 <x-secondary-button @click="rangoAbierto = false">Cancelar</x-secondary-button>
             </div>
+            {{-- CU33 A4 (paso 3): el rango no se cruza con otro --}}
             <p class="text-xs text-slate-500 sm:col-span-4">Un rango no puede cruzarse con otro del mismo parámetro en edad y vigencia si es del mismo sexo, o si uno de los dos es «Ambos».</p>
         </form>
     </div>

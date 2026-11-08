@@ -68,7 +68,7 @@ class LaboratorioService
     }
 
     /**
-     * CU34 paso 3: el médico que la pidió anula una orden SOLICITADA (sin muestra tomada). Se puede
+     * CU34 A4 (paso 3): el médico que la pidió anula una orden SOLICITADA (sin muestra tomada). Se puede
      * aunque la consulta ya esté finalizada: la orden es otra tabla.
      */
     public function anular(OrdenLaboratorio $orden, Usuario $usuario): OrdenLaboratorio
@@ -78,7 +78,7 @@ class LaboratorioService
             $orden->load(["consulta.cita.ficha.horario.medicoEspecialidad", "tipoExamen"]);
             $this->autorizar($orden->consulta, $usuario);
 
-            // CU34 A4: con la muestra tomada (o después) ya no se anula.
+            // CU34 A5: una orden que no está SOLICITADA (con la muestra tomada o después) ya no se anula.
             if ($orden->estado !== "SOLICITADA") {
                 throw new ReglaNegocioException("Solo se anula una orden solicitada (sin muestra tomada). La orden {$orden->codigo} está "
                     . mb_strtolower($orden->textoEstado()) . ".");

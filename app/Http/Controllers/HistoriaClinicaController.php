@@ -59,6 +59,7 @@ class HistoriaClinicaController extends Controller
 
         $paciente = Paciente::with(["persona", "historiaClinica"])->findOrFail($id);
         $acceso = $paciente->accesoClinico($request->user());
+        // CU30 A1: sin acceso clínico, 403.
         abort_if($acceso === null, 403);
 
         $historia = $paciente->historiaClinica;

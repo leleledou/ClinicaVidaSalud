@@ -12,8 +12,8 @@ use Illuminate\Validation\Rule;
 
 /**
  * CU33 Gestionar catálogo de laboratorio (RF-34): parámetros de un examen, en la ficha del examen.
- * Requiere el permiso laboratorio.gestionar. No hay borrado (RN11): un parámetro con resultados no
- * cambia su tipo de valor ni su unidad.
+ * Requiere el permiso laboratorio.gestionar. No hay borrado (RN11). A3 (paso 2): un parámetro con resultados
+ * no cambia su tipo de valor ni su unidad.
  */
 class ParametroLaboratorioController extends Controller
 {
@@ -46,7 +46,7 @@ class ParametroLaboratorioController extends Controller
         return redirect()->route("tipos-examen.mostrar", $examen->id)->with("exito", "Parámetro registrado");
     }
 
-    // CU33 paso 2 / A3: modificar un parámetro. Con resultados, no cambia su tipo de valor ni su unidad.
+    // CU33 paso 2: modificar un parámetro. A3 (paso 2): con resultados, no cambia su tipo de valor ni su unidad.
     // El id viaja oculto.
     public function update(Request $request)
     {
@@ -59,7 +59,7 @@ class ParametroLaboratorioController extends Controller
         $datos = $request->validate($this->reglas($parametro->tipo_examen_id, $parametro->id, $exigirUnidad), $this->mensajes());
         $volver = redirect()->route("tipos-examen.mostrar", $parametro->tipo_examen_id);
 
-        // CU33 A3: con resultados cargados, el tipo de valor y la unidad quedan fijos.
+        // CU33 A3 (paso 2): con resultados cargados, el tipo de valor y la unidad quedan fijos.
         if ($parametro->tieneResultados() && ($datos["tipo_valor"] !== $parametro->tipo_valor || ($datos["unidad"] ?? null) !== $parametro->unidad)) {
             return $volver->withErrors(["operacion" => "El parámetro {$parametro->nombre} ya tiene {$parametro->resultados_count} resultado(s): no se cambia su tipo de valor ni su unidad."]);
         }

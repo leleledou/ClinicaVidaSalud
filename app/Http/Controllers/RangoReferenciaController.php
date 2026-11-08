@@ -14,8 +14,8 @@ use Illuminate\Validation\Rule;
 /**
  * CU33 Gestionar catálogo de laboratorio (RF-34): rangos de referencia por edad (meses) y sexo, con
  * vigencia, de los parámetros NUMERICO. Requiere el permiso laboratorio.gestionar. No hay borrado (RN11).
- * Un rango ya usado por algún resultado no se modifica (tg_rangos_referencia_usado): se cierra su
- * vigencia y se registra una versión nueva. Los rangos no se cruzan (ex_rangos_referencia_solape).
+ * A5 (paso 3): un rango ya usado por algún resultado no se modifica (tg_rangos_referencia_usado): se cierra su
+ * vigencia y se registra una versión nueva. A4 (paso 3): los rangos no se cruzan (ex_rangos_referencia_solape).
  */
 class RangoReferenciaController extends Controller
 {
@@ -49,13 +49,13 @@ class RangoReferenciaController extends Controller
         return $volver->with("exito", "Rango de referencia registrado");
     }
 
-    // CU33 paso 3: modificar un rango que todavía no se usó (A4: uno usado solo se cierra). El id viaja oculto.
+    // CU33 paso 3: modificar un rango que todavía no se usó (A5: uno usado solo se cierra). El id viaja oculto.
     public function update(Request $request)
     {
         $rango = $this->rangoDelFormulario($request);
         $volver = redirect()->route("tipos-examen.mostrar", $rango->parametro->tipo_examen_id);
 
-        // CU33 A4 / tg_rangos_referencia_usado.
+        // CU33 A5 (paso 3) / tg_rangos_referencia_usado.
         if ($rango->resultados_count > 0) {
             return $volver->withErrors(["operacion" => "El rango está usado en {$rango->resultados_count} resultado(s): no se edita. Cierre su vigencia y registre una versión nueva."]);
         }
@@ -76,7 +76,7 @@ class RangoReferenciaController extends Controller
         return $volver->with("exito", "Rango de referencia actualizado");
     }
 
-    // CU33 A4: delete = cerrar vigencia (RN23: no se borra). Fija vigente_hasta de un rango, usado o no. El id viaja oculto.
+    // CU33 A5 (paso 3): delete = cerrar vigencia (RN23: no se borra). Fija vigente_hasta de un rango, usado o no. El id viaja oculto.
     public function delete(Request $request)
     {
         $rango = $this->rangoDelFormulario($request);
@@ -142,7 +142,7 @@ class RangoReferenciaController extends Controller
                 $errores->add("critico_max", "El crítico máximo no puede ser menor que el crítico mínimo.");
             }
 
-            // CU33 A3 / ex_rangos_referencia_solape: no se cruza con otro rango del parámetro.
+            // CU33 A4 (paso 3) / ex_rangos_referencia_solape: no se cruza con otro rango del parámetro.
             if ($errores->isEmpty() && ($otro = RangoReferencia::solapado($parametroId, (int) $request->input("edad_min_meses"), (int) $request->input("edad_max_meses"),
                     $request->input("sexo") ?: null, $request->input("vigente_desde"), $request->input("vigente_hasta") ?: null, $idIgnorar))) {
                 $errores->add("rango", "Se cruza con el rango " . $otro->texto() . " (" . $otro->descripcion() . "). Ajuste la edad, el sexo o la vigencia, o cierre la vigencia de ese rango.");
@@ -156,8 +156,8 @@ class RangoReferenciaController extends Controller
         return $datos;
     }
 
-    // CU33 A3 / A4: errores de la base con un mensaje claro (el cruce del EXCLUDE, 23P01, o el trigger
-    // de rango usado). Cualquier otro error sigue su curso.
+    // CU33 A4 y A5 (paso 3): errores de la base con un mensaje claro (A4: el cruce del EXCLUDE, 23P01; A5: el
+    // trigger de rango usado). Cualquier otro error sigue su curso.
     private function errorBase(QueryException $e)
     {
         if (str_contains($e->getMessage(), "ex_rangos_referencia_solape")) {

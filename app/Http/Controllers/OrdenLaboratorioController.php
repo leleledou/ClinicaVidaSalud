@@ -14,7 +14,7 @@ use Illuminate\Validation\Rule;
 /**
  * CU34 Solicitar orden de laboratorio (RF-35). Solo el médico de la consulta (perfil ACTIVO) con
  * consultas.gestionar, desde la consulta EN_CURSO (consultas/show). No hay borrado físico (RN11,
- * trigger sin DELETE): una orden SOLICITADA se anula. Las reglas de negocio están en LaboratorioService.
+ * trigger sin DELETE): una orden SOLICITADA se anula (A4, paso 3). Las reglas de negocio están en LaboratorioService.
  *
  * Lista y ficha de órdenes: CU35 Registrar resultados de laboratorio (RF-36; laboratorio.cargar_resultados)
  * y CU36 Revisar resultados y evolución (RF-37; laboratorio.consultar_resultados o resultados.propios).
@@ -143,7 +143,7 @@ class OrdenLaboratorioController extends Controller
         return redirect()->route("consultas.mostrar", $consulta->id)->with("exito", "Orden {$orden->codigo} solicitada");
     }
 
-    // CU34 paso 3: delete = anular (RN11: no se borra). Una orden SOLICITADA, solo el médico que la pidió. El id viaja oculto.
+    // CU34 A4 (paso 3): delete = anular (RN11: no se borra). Una orden SOLICITADA (A5: otra no se anula), solo el médico que la pidió. El id viaja oculto.
     public function delete(Request $request)
     {
         $request->validate($this->reglaId(), $this->mensajes());

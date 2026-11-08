@@ -407,8 +407,8 @@ class CitaService
         // CU27 paso 1: candidatas.
         foreach ($this->citasVencidas($ahora)->pluck("citas.id") as $id) {
             $marcada = DB::transaction(function () use ($id, $ahora) {
-                // CU27 paso 2: la cita bloqueada (FOR UPDATE SKIP LOCKED: si alguien la está cambiando,
-                // se salta y la toma la próxima ejecución) y revisada otra vez dentro de la transacción.
+                // CU27 paso 2: la cita bloqueada (FOR UPDATE SKIP LOCKED) y revisada otra vez dentro de la transacción.
+                // CU27 A2 (paso 2): si está ocupada o ya cambió, se salta (si sigue vencida, la toma la próxima ejecución).
                 $cita = Cita::whereKey($id)->lock("for update skip locked")->first();
                 if ($cita === null || ! $this->citasVencidas($ahora)->where("citas.id", $id)->exists()) {
                     return false;

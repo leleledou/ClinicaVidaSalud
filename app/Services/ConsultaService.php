@@ -180,7 +180,7 @@ class ConsultaService
     /**
      * CU32 paso 4: registra la evolución de un tratamiento (estado, respuesta, observación y fin). Cualquier
      * médico con tratamientos.gestionar y acceso clínico al paciente, aunque la consulta esté finalizada.
-     * Devuelve los campos que cambiaron (vacío = «No hay cambios», sin bitácora).
+     * Devuelve los campos que cambiaron (vacío = A1, paso 4: «No hay cambios», sin bitácora).
      */
     public function registrarEvolucion(Tratamiento $tratamiento, array $datos, Usuario $usuario): array
     {
@@ -207,6 +207,7 @@ class ConsultaService
 
             $anteriores = $this->fotoTratamiento($tratamiento);
             $cambiados = array_keys(array_filter($nuevos, fn ($valor, $campo) => $valor !== $anteriores[$campo], ARRAY_FILTER_USE_BOTH));
+            // CU32 A1 (paso 4): sin cambios, «No hay cambios» y sin bitácora.
             if ($cambiados === []) {
                 return [];
             }

@@ -68,7 +68,7 @@ class ConsultaController extends Controller
             "cita.paciente.historiaClinica.antecedentes" => fn ($antecedente) => $antecedente->where("vigente", true)->orderBy("tipo"),
             "tratamientos" => fn ($tratamiento) => $tratamiento->orderBy("fecha_inicio")->orderBy("id"),
             "tratamientos.prescripciones", "tratamientos.resultadoLaboratorio.parametro",
-            // CU34 paso 4: órdenes de laboratorio de la consulta.
+            // CU34 paso 3: mostrar las órdenes de laboratorio de la consulta.
             "ordenes" => fn ($orden) => $orden->orderBy("fecha_solicitud")->orderBy("id"),
             "ordenes.tipoExamen",
         ])->findOrFail($id);
