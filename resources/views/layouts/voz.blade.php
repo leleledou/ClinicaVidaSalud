@@ -1,5 +1,16 @@
 {{-- CU39 Ejecutar comando de voz (RF-40) pasos 1 y 7: botón de micrófono y panel (solo con voz.usar; lo maneja
-     resources/js/voz.js). La transcripción se puede corregir o escribir; toda acción se confirma antes de ejecutarse. --}}
+     resources/js/voz.js). La transcripción se puede corregir o escribir; toda acción se confirma antes de ejecutarse.
+     La ayuda muestra un ejemplo de cada intención que el usuario puede usar. --}}
+@php
+    $ejemplosVoz = [
+        'consultar_disponibilidad' => 'qué fichas hay de pediatría',
+        'ver_citas' => 'mis citas del lunes',
+        'programar_cita' => 'quiero una cita de medicina general para el lunes',
+        'cancelar_cita' => 'cancela la cita CM-000045 porque viajo',
+        'ver_cardex' => Gate::allows('historia.propia') && ! \App\Models\Paciente::medicoClinico(Auth::user()) ? 'muéstrame mi cardex' : 'abre el cardex de Pedro Mamani',
+    ];
+    $ayudaVoz = array_intersect_key($ejemplosVoz, app(\App\Services\VozService::class)->intencionesPermitidas(Auth::user()));
+@endphp
 <button type="button" data-voz-abrir aria-expanded="false" aria-controls="panel-voz"
         class="fixed bottom-5 end-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-teal-600 text-white shadow-lg hover:bg-teal-700 focus:outline-none focus:ring-4 focus:ring-teal-300"
         title="Comando de voz" aria-label="Abrir el panel de comandos de voz">
@@ -37,5 +48,8 @@
             <button type="button" data-voz-cancelar class="btn-secundario btn-chico">Cancelar</button>
         </div>
     </div>
-    <p class="mt-3 text-xs text-slate-400">La interpretación usa un servicio de IA externo. Nada se ejecuta sin su confirmación.</p>
+    @if ($ayudaVoz)
+        <p class="mt-3 text-xs text-slate-500">Puede decir, por ejemplo: {!! collect($ayudaVoz)->map(fn ($ejemplo) => '«' . e($ejemplo) . '»')->implode(', ') !!}.</p>
+    @endif
+    <p class="mt-2 text-xs text-slate-400">La interpretación usa un servicio de IA externo. Nada se ejecuta sin su confirmación.</p>
 </section>

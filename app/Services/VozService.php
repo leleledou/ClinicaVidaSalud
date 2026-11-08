@@ -62,6 +62,12 @@ class VozService
         if ($usuario->tienePermiso("citas.cancelar") || $usuario->tienePermiso("citas.autoservicio")) {
             $intenciones["cancelar_cita"] = "cancelar una cita. parametros: {\"codigo\": \"CM-000000\", \"motivo\": texto}";
         }
+        // CU30: quien puede ver cardex (médico ACTIVO con historia.consultar, o el paciente con historia.propia).
+        if (Paciente::medicoClinico($usuario) !== null || $usuario->tienePermiso("historia.propia")) {
+            $intenciones["ver_cardex"] = "abrir el cardex (historia clínica) de un paciente. parametros: {\"paciente\": nombre, código PAC- o documento; "
+                . "omítelo si pide el suyo}. Ejemplos: \"abre el cardex de Pedro Mamani\" → {\"intencion\": \"ver_cardex\", \"parametros\": {\"paciente\": \"Pedro Mamani\"}}; "
+                . "\"muéstrame mi cardex\" → {\"intencion\": \"ver_cardex\", \"parametros\": {}}";
+        }
 
         return $intenciones;
     }
@@ -98,6 +104,7 @@ class VozService
                 "ver_citas" => $this->resolverVerCitas($parametros, $usuario),
                 "programar_cita" => $this->resolverProgramar($parametros, $usuario),
                 "cancelar_cita" => $this->resolverCancelar($parametros, $usuario),
+                "ver_cardex" => $this->resolverCardex($parametros, $usuario),
             };
         } catch (ReglaNegocioException $e) {
             $this->registrar($usuario, $texto, false, ["error" => $e->getMessage()]);
@@ -133,8 +140,9 @@ class VozService
         }
 
         return match ($accion["intencion"]) {
-            // CU39 paso 8 a) y b): la pantalla del CU con los filtros puestos.
-            "consultar_disponibilidad", "ver_citas" => [$accion["url"], null],
+            // CU39 paso 8 a), b) y e): la pantalla del CU con los filtros puestos o el cardex (CU30 vuelve a revisar
+            // el acceso y registra CONSULTAR_CARDEX).
+            "consultar_disponibilidad", "ver_citas", "ver_cardex" => [$accion["url"], null],
             // CU39 paso 8 c): CU15 con canal VOZ (CitaService valida todo otra vez dentro de su transacción).
             "programar_cita" => $this->ejecutarProgramar($accion, $usuario),
             // CU39 paso 8 d): CU17 con canal VOZ.
@@ -329,6 +337,38 @@ class VozService
             "confirmacion" => "Cancelar la cita {$cita->codigo} de {$cita->paciente->persona->nombre_completo} del "
                 . Carbon::parse($cita->ficha->fecha)->format("d/m/Y") . " a las " . substr($cita->ficha->hora_inicio, 0, 5)
                 . ". Motivo: {$motivo}. ¿Confirmar?",
+        ];
+    }
+
+    /**
+     * CU39 paso 6 e): el paciente del cardex, buscado como CU11 (Paciente::buscar) y validado con la regla de CU30
+     * (Paciente::accesoClinico): el médico, pacientes con los que tiene o tuvo cita; el paciente, el suyo o un menor
+     * a su cargo (sin nombre, el suyo). Solo se consideran los pacientes a los que tiene acceso: «sin acceso» y
+     * «sin coincidencia» dan el mismo mensaje (no revela datos de otros pacientes). Varias → que precise.
+     */
+    private function resolverCardex(array $p, Usuario $usuario): array
+    {
+        $buscado = trim((string) ($p["paciente"] ?? ""));
+        if ($buscado === "") {
+            $paciente = $usuario->tienePermiso("historia.propia") ? $usuario->persona?->paciente : null;
+            if ($paciente === null || $paciente->accesoClinico($usuario) === null) {
+                throw new ReglaNegocioException("Falta el paciente: diga su nombre, su código PAC- o su documento.");
+            }
+        } else {
+            $pacientes = Paciente::buscar($buscado)->limit(50)->get()
+                ->filter(fn (Paciente $candidato) => $candidato->accesoClinico($usuario) !== null)->values();
+            if ($pacientes->isEmpty()) {
+                throw new ReglaNegocioException("No encontré a «{$buscado}» entre los pacientes cuyo cardex puede ver.");
+            }
+            if ($pacientes->count() > 1) {
+                throw new ReglaNegocioException("Hay varios pacientes con «{$buscado}» (" . $pacientes->take(5)->map(fn ($x) => "{$x->persona->nombre_completo} {$x->codigo}")->implode(", ") . "). Diga el código PAC-.");
+            }
+            $paciente = $pacientes->first();
+        }
+
+        return [
+            "url" => route("historias-clinicas.mostrar", $paciente->id),
+            "confirmacion" => "Abrir el cardex de {$paciente->persona->nombres} {$paciente->persona->apellido_paterno} ({$paciente->codigo}). ¿Confirmar?",
         ];
     }
 
