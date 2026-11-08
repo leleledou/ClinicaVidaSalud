@@ -86,13 +86,13 @@ class SeguridadSeeder extends Seeder
             'especialidades.gestionar', 'medicos.gestionar', 'consultorios.gestionar', 'aseguradoras.gestionar',
             'bloqueos.gestionar', 'horarios.gestionar', 'fichas.consultar', 'agenda.consultar',
             'pacientes.buscar', 'citas.autorizar_excepcion', 'citas.historial_consultar',
-            'laboratorio.gestionar', 'notificaciones.gestionar', 'reportes.consultar',
+            'laboratorio.gestionar', 'notificaciones.gestionar', 'reportes.consultar', 'voz.usar',
         ],
         'RECEPCIONISTA' => [
             'fichas.consultar', 'agenda.consultar', 'pacientes.gestionar', 'pacientes.buscar',
             'vinculos.gestionar', 'vinculos.verificar', 'seguros.gestionar', 'seguros.verificar',
             'citas.programar', 'citas.reprogramar', 'citas.cancelar', 'citas.confirmar',
-            'citas.registrar_asistencia', 'citas.historial_consultar', 'laboratorio.cargar_resultados', 'voz.usar',
+            'citas.registrar_asistencia', 'citas.historial_consultar', 'laboratorio.cargar_resultados', 'reportes.consultar', 'voz.usar',
         ],
         'MEDICO' => [
             'agenda.propia', 'fichas.consultar', 'pacientes.buscar', 'citas.registrar_asistencia',

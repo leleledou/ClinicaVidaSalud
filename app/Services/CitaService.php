@@ -41,15 +41,16 @@ class CitaService
      * CU15 pasos 6 a 9: programa una cita.
      * $datos: paciente_id, ficha_id, motivo, seguro_paciente_id y codigo_autorizacion_seguro (opcionales).
      * $origen: RECEPCION o AUTOSERVICIO (CU15 A1).
+     * CU39 paso 8: $canal VOZ (por defecto WEB) en la cita, el historial y la bitácora, con la transcripción.
      */
-    public function programar(array $datos, Usuario $usuario, string $origen): Cita
+    public function programar(array $datos, Usuario $usuario, string $origen, string $canal = "WEB", ?string $transcripcionVoz = null): Cita
     {
         // RN13 / RF-21: la disponibilidad se comprueba otra vez dentro de la misma transacción que guarda.
-        return $this->enTransaccion(function () use ($datos, $usuario, $origen) {
-            $cita = $this->registrarCita($datos, $usuario, $origen);
+        return $this->enTransaccion(function () use ($datos, $usuario, $origen, $canal, $transcripcionVoz) {
+            $cita = $this->registrarCita($datos, $usuario, $origen, null, null, $canal);
 
             // f) Bitácora con los datos nuevos.
-            Bitacora::registrar("PROGRAMAR_CITA", "citas", $usuario->id, true, "citas", $cita->id, "WEB", null, $this->foto($cita));
+            Bitacora::registrar("PROGRAMAR_CITA", "citas", $usuario->id, true, "citas", $cita->id, $canal, null, $this->foto($cita), $transcripcionVoz);
 
             return $cita;
         });
@@ -239,10 +240,11 @@ class CitaService
      * CU17 pasos 4 a 7 (RF-24): cancela la cita SIN eliminar el registro; la ficha vuelve a quedar
      * disponible (RN09: el índice parcial ux_citas_ficha_activa ya no la cuenta).
      * $autoservicio: el paciente o su responsable legal desde la web (A1).
+     * CU39 paso 8: $canal VOZ (por defecto WEB) en la cita, el historial y la bitácora, con la transcripción.
      */
-    public function cancelar(Cita $cita, string $motivo, Usuario $usuario, bool $autoservicio = false): Cita
+    public function cancelar(Cita $cita, string $motivo, Usuario $usuario, bool $autoservicio = false, string $canal = "WEB", ?string $transcripcionVoz = null): Cita
     {
-        return DB::transaction(function () use ($cita, $motivo, $usuario, $autoservicio) {
+        return DB::transaction(function () use ($cita, $motivo, $usuario, $autoservicio, $canal, $transcripcionVoz) {
             $cita = $this->bloquearCita($cita);
 
             // RN12 / A1: recepción con citas.cancelar o el dueño con citas.autoservicio.
@@ -258,9 +260,9 @@ class CitaService
             }
 
             $antes = $this->foto($cita);
-            $this->anular($cita, $motivo, $usuario);
+            $this->anular($cita, $motivo, $usuario, true, $canal);
 
-            Bitacora::registrar("CANCELAR_CITA", "citas", $usuario->id, true, "citas", $cita->id, "WEB", $antes, $this->foto($cita));
+            Bitacora::registrar("CANCELAR_CITA", "citas", $usuario->id, true, "citas", $cita->id, $canal, $antes, $this->foto($cita), $transcripcionVoz);
 
             return $cita;
         });
@@ -539,8 +541,9 @@ class CitaService
      * CU15 pasos 6 a 9 (lo reutilizan CU16 A1 y CU26): valida y crea la cita con su historial y sus avisos,
      * dentro de la transacción del llamador. $reemplaza: la cita CANCELADA que esta reemplaza.
      * $excepcion (CU26): administrador_autoriza_id y justificacion_excepcion; la edad no se valida.
+     * $canal (CU39): WEB o VOZ (ck_citas_canal), en la cita y en el historial.
      */
-    private function registrarCita(array $datos, Usuario $usuario, string $origen, ?Cita $reemplaza = null, ?array $excepcion = null): Cita
+    private function registrarCita(array $datos, Usuario $usuario, string $origen, ?Cita $reemplaza = null, ?array $excepcion = null, string $canal = "WEB"): Cita
     {
         // a) La ficha queda bloqueada (FOR UPDATE) hasta el final de la transacción.
         $ficha = $this->bloquearFicha((int) $datos["ficha_id"]);
@@ -574,7 +577,7 @@ class CitaService
             "cita_reemplazada_id" => $reemplaza?->id,
             "codigo" => $codigo,
             "origen" => $origen,
-            "canal" => "WEB",
+            "canal" => $canal,
             "motivo" => ($datos["motivo"] ?? null) ?: null,
             "estado" => "PROGRAMADA",
             "codigo_autorizacion_seguro" => $seguro ? (($datos["codigo_autorizacion_seguro"] ?? null) ?: null) : null,
@@ -594,7 +597,7 @@ class CitaService
             "ficha_nueva_id" => $ficha->id,
             "estado_anterior" => null,
             "estado_nuevo" => "PROGRAMADA",
-            "canal" => "WEB",
+            "canal" => $canal,
             "motivo" => match (true) {
                 $reemplaza !== null => "Reasignada desde la cita {$reemplaza->codigo}",
                 $origen === self::ORIGEN_AUTOSERVICIO => "Reserva en línea del paciente",
@@ -611,9 +614,9 @@ class CitaService
     /**
      * CU17 pasos 5 y 6 (lo reutiliza CU16 A1): CANCELADA con su motivo, sin eliminar el registro
      * (RF-24, RN10), historial, avisos pendientes anulados y CITA_CANCELADA al paciente y al médico.
-     * $fichaLiberada = false (CU25): la ficha queda bloqueada, no disponible.
+     * $fichaLiberada = false (CU25): la ficha queda bloqueada, no disponible. $canal (CU39): WEB o VOZ en el historial.
      */
-    private function anular(Cita $cita, string $motivo, Usuario $usuario, bool $fichaLiberada = true): void
+    private function anular(Cita $cita, string $motivo, Usuario $usuario, bool $fichaLiberada = true, string $canal = "WEB"): void
     {
         $estadoAnterior = $cita->estado;
         $cita->update(["estado" => "CANCELADA", "motivo_cancelacion" => $motivo]);
@@ -623,7 +626,7 @@ class CitaService
             "usuario_realiza_id" => $usuario->id,
             "estado_anterior" => $estadoAnterior,
             "estado_nuevo" => "CANCELADA",
-            "canal" => "WEB",
+            "canal" => $canal,
             "motivo" => $motivo,
         ]);
 
@@ -951,7 +954,9 @@ class CitaService
         // Canal: CORREO si tiene cuenta que acepta avisos por correo; si no, SISTEMA.
         $cuenta = $destinatario->usuario;
         $canal = $cuenta && $cuenta->notificar_por_correo && $cuenta->correo ? "CORREO" : "SISTEMA";
-        $base = ["referencia_tipo" => "citas", "referencia_id" => $cita->id, "estado" => "PENDIENTE"];
+        // CU37 paso 4: el recordatorio va por PUSH si la cuenta activó los avisos push (como NotificacionSeeder).
+        $canalRecordatorio = $cuenta && $cuenta->notificar_por_push ? "PUSH" : $canal;
+        $base =["referencia_tipo" => "citas", "referencia_id" => $cita->id, "estado" => "PENDIENTE"];
 
         // Títulos y mensajes para el paciente y para el médico según el tipo de aviso.
         [$tituloPaciente, $mensajePaciente, $tituloMedico, $mensajeMedico] = match ($tipo) {
@@ -988,7 +993,7 @@ class CitaService
             Notificacion::create($base + [
                 "persona_id" => $destinatario->id,
                 "tipo" => "RECORDATORIO_CITA",
-                "canal" => $canal,
+                "canal" => $canalRecordatorio,
                 "titulo" => "Recordatorio de la cita {$cita->codigo}",
                 "mensaje" => "Le recordamos la cita {$cita->codigo} de {$detalle}.",
                 "programada_para" => $recordar,

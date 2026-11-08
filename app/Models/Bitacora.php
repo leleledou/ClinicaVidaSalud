@@ -38,7 +38,8 @@ class Bitacora extends Model
 
     // Registra una acción en la bitácora. Nunca se guardan contraseñas.
     // fecha_hora la pone la base (useCurrent). Los datos anteriores y nuevos son opcionales.
-    public static function registrar(string $accion, string $modulo, ?int $usuarioId, bool $exito = true, ?string $tablaAfectada = null, ?int $registroId = null, string $canal = "WEB", ?array $datosAnteriores = null, ?array $datosNuevos = null): self
+    // CU39: $transcripcionVoz solo con canal VOZ (ck_bitacoras_voz).
+    public static function registrar(string $accion, string $modulo, ?int $usuarioId, bool $exito = true, ?string $tablaAfectada = null, ?int $registroId = null, string $canal = "WEB", ?array $datosAnteriores = null, ?array $datosNuevos = null, ?string $transcripcionVoz = null): self
     {
         return self::create([
             "usuario_id" => $usuarioId,
@@ -47,6 +48,7 @@ class Bitacora extends Model
             "tabla_afectada" => $tablaAfectada,
             "registro_id" => $registroId,
             "canal" => $canal,
+            "transcripcion_voz" => $canal === "VOZ" ? $transcripcionVoz : null,
             "datos_anteriores" => $datosAnteriores,
             "datos_nuevos" => $datosNuevos,
             "exito" => $exito,

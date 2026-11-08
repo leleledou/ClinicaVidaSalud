@@ -223,6 +223,14 @@
             @endcan
         @endcanany
 
+        {{-- CU40 Generar reportes (Administrador y Recepcionista) --}}
+        @can('reportes.consultar')
+            <x-menu-seccion>Gestión</x-menu-seccion>
+            <x-menu-enlace :href="route('reportes.listar')" :active="request()->routeIs('reportes.*')">
+                Reportes
+            </x-menu-enlace>
+        @endcan
+
         {{-- SEGURIDAD --}}
         @canany(['usuarios.gestionar', 'roles.gestionar', 'bitacora.consultar', 'configuracion.gestionar'])
             <x-menu-seccion>Seguridad</x-menu-seccion>

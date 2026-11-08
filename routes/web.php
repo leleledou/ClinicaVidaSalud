@@ -38,6 +38,8 @@ use App\Http\Controllers\ResultadoLaboratorioController;
 use App\Http\Controllers\TratamientoController;
 use App\Http\Controllers\PrescripcionController;
 use App\Http\Controllers\NotificacionController;
+use App\Http\Controllers\VozController;
+use App\Http\Controllers\ReporteController;
 use Illuminate\Support\Facades\Route;
 
 // CU01 Iniciar sesión: solo para quien no tiene sesión.
@@ -368,6 +370,21 @@ Route::middleware(["auth", "auth.session", "cuenta.activa", "inactividad", "camb
         Route::get('/','index')->name("notificaciones.listar");
         Route::post('/leer','leer')->name("notificaciones.leer");
         Route::post('/leer-todas','leerTodas')->name("notificaciones.leer-todas");
+    });
+
+    // CU39 Ejecutar comando de voz (RF-40): voz.usar. interpretar = Servicio de IA + confirmación (no ejecuta);
+    // ejecutar = lo confirmado (token de la sesión, una sola vez). throttle: limita llamadas a la IA.
+    Route::prefix("voz")->middleware(["can:voz.usar", "throttle:10,1"])->controller(VozController::class)->group(function(){
+        Route::post('/interpretar','interpretar')->name("voz.interpretar");
+        Route::post('/ejecutar','ejecutar')->name("voz.ejecutar");
+    });
+
+    // CU40 Generar reportes (RF-41): reportes.consultar (Administrador y Recepcionista).
+    // {tipo} = citas, pacientes, atenciones o agenda; exportar ?formato=pdf|csv con los mismos filtros.
+    Route::prefix("reportes")->middleware("can:reportes.consultar")->controller(ReporteController::class)->group(function(){
+        Route::get('/','index')->name("reportes.listar");
+        Route::get('/{tipo}','show')->whereIn('tipo', ['citas', 'pacientes', 'atenciones', 'agenda'])->name("reportes.mostrar");
+        Route::get('/{tipo}/exportar','exportar')->whereIn('tipo', ['citas', 'pacientes', 'atenciones', 'agenda'])->name("reportes.exportar");
     });
 });
 

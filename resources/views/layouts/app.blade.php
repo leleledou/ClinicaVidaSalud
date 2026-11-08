@@ -12,8 +12,9 @@
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
 
         <!-- Scripts -->
-        {{-- CU37 paso 4: notificaciones.js (avisos del navegador y contador del menú), solo con sesión --}}
-        @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/notificaciones.js'])
+        {{-- CU37 paso 4: notificaciones.js (avisos del navegador y contador del menú), solo con sesión.
+             CU39 paso 1: voz.js (panel de voz; solo actúa si el panel está en la página, con voz.usar). --}}
+        @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/notificaciones.js', 'resources/js/voz.js'])
     </head>
     <body class="font-sans antialiased bg-slate-100 text-slate-800"
           data-notificaciones-url="{{ route('notificaciones.nuevas') }}"
@@ -119,5 +120,10 @@
                 </div>
             </div>
         </div>
+
+        {{-- CU39 Ejecutar comando de voz: botón de micrófono y panel, solo con voz.usar --}}
+        @can('voz.usar')
+            @include('layouts.voz')
+        @endcan
     </body>
 </html>
